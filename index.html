@@ -112,6 +112,8 @@
              font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
   .notes-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
              font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .jira-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
+             font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
   .milestone-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
              font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
   .milestone-row{ display:grid; grid-template-columns: 130px minmax(140px,1.8fr) 130px 28px;
@@ -296,7 +298,7 @@
     <span class="sq"></span> Portfolio Overview
   </a>
   <a class="tab" id="navTabSummary" href="#" onclick="navGoDashboard('summary'); return false;">
-    <span class="sq"></span> Initiatives Summary <span class="splash-badge neutral">4</span>
+    <span class="sq"></span> Key Initiatives <span class="splash-badge neutral">4</span>
   </a>
   <a class="tab" id="navTabProjects" href="#" onclick="navGoDashboard('projects'); return false;">
     <span class="sq"></span> All Initiatives <span class="splash-badge neutral">17</span>
@@ -314,7 +316,7 @@
 
     <div class="cta-row">
       <div>
-        <h2>Full delivery portfolio, live</h2>
+        <h2>Portfolio Summary</h2>
         <p>Every initiative, risk, escalation, and milestone — sorted, filtered, and fully editable.</p>
       </div>
     </div>
@@ -383,7 +385,7 @@
 
   <div class="tabs" id="tabs" style="display:none;">
     <button class="tab-btn active" data-tab="projects" id="tabProjectsBtn">Initiatives</button>
-    <button class="tab-btn" data-tab="summary" id="tabSummaryBtn">Initiatives Summary</button>
+    <button class="tab-btn" data-tab="summary" id="tabSummaryBtn">Key Initiatives</button>
     <button class="tab-btn" data-tab="phase" id="tabPhaseBtn">Initiatives By Phase</button>
     <button class="tab-btn" data-tab="health" id="tabHealthBtn">Initiatives By Health</button>
     <button class="tab-btn" data-tab="risks" id="tabRisksBtn">All Risks</button>
@@ -942,7 +944,7 @@ const SEED_DATA = [
 
 let state = {
   projects: [],
-  expandedSection: {}, // projectId -> "notes" | "milestones" | "risks" | "escalations" | null
+  expandedSection: {}, // projectId -> "notes" | "milestones" | "risks" | "escalations" | "jira" | null
   lastSection: {},     // projectId -> last section shown (remembered for the chevron toggle)
   search: "",
   statusFilter: "All",
@@ -1656,7 +1658,7 @@ function deleteProject(id){
 }
 function addProject(){
   const p = { id: uid(), name:"", product:"", sdm:"", csm:"", startDate:new Date().toISOString().slice(0,10),
-              endDate:new Date().toISOString().slice(0,10), status:"On Track", phase:"Initiation", segment:"", contractValue:0, percentComplete:0, notes:"", risks:[], escalations:[], milestones:[] };
+              endDate:new Date().toISOString().slice(0,10), status:"On Track", phase:"Initiation", segment:"", contractValue:0, percentComplete:0, notes:"", jiraLink:"", risks:[], escalations:[], milestones:[] };
   state.projects.unshift(p);
   scheduleSave(); render();
 }
@@ -1874,6 +1876,7 @@ function projectHtml(p){
   const escPillBg = openEscalations.length ? (highOpenEsc ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
   const escPillColor = openEscalations.length ? (highOpenEsc ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
   const hasNotes = !!(p.notes && p.notes.trim());
+  const hasJira = !!(p.jiraLink && p.jiraLink.trim());
 
   const milestones = p.milestones || [];
   const openMilestones = milestones.filter(m => m.status !== "Complete");
@@ -1981,6 +1984,13 @@ function projectHtml(p){
             Notes
           </button>
         </div>
+        <div class="proj-field-wrap spacer">
+          <span class="proj-field-label">&nbsp;</span>
+          <button class="jira-pill" data-action="toggle-section" data-section="jira" style="background:${hasJira ? "var(--accent-soft)" : "var(--surface2)"};color:${hasJira ? "var(--accent)" : "var(--ink-soft)"}; ${activeSection==='jira' ? "box-shadow:0 0 0 2px currentColor;" : ""}">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11.53 2c0 2.4 1.97 4.35 4.36 4.35h2.68v2.6c2.4 0 4.35-1.94 4.35-4.34V2z"/><path d="M11.53 9.17c0 2.4 1.96 4.35 4.35 4.35h2.68v2.6c2.4 0 4.35-1.95 4.35-4.35V9.17z"/><path d="M2 16.35c0 2.4 1.96 4.35 4.35 4.35H9v2.6c2.4 0 4.35-1.95 4.35-4.35v-6.6H2z"/></svg>
+            JIRA
+          </button>
+        </div>
         <div class="proj-field-wrap spacer" style="margin-left:auto;">
           <span class="proj-field-label">&nbsp;</span>
           ${pendingDeleteProjectId === p.id ? `
@@ -2000,6 +2010,13 @@ function projectHtml(p){
       ${activeSection === "notes" ? `
       <div class="panel-section-title">Notes</div>
       <textarea rows="3" class="field wrap-textarea" data-role="proj-field" data-field="notes" placeholder="Initiative notes — context, updates, anything worth flagging" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-height:72px; line-height:1.45;">${esc(p.notes)}</textarea>` : ""}
+
+      ${activeSection === "jira" ? `
+      <div class="panel-section-title">JIRA</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="url" class="field" data-role="proj-field" data-field="jiraLink" value="${esc(p.jiraLink)}" placeholder="Paste a link to this initiative's JIRA dashboard/board" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; flex:1 1 auto;" />
+        ${hasJira ? `<a href="${esc(p.jiraLink)}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost" style="text-decoration:none; flex:0 0 auto;">Open ↗</a>` : ""}
+      </div>` : ""}
 
       ${activeSection === "milestones" ? `
       <div class="panel-section-title">Key Milestones</div>
@@ -2068,7 +2085,7 @@ function renderProjectsTab(){
   root.querySelectorAll(".name-textarea, .wrap-textarea").forEach(autosizeTextarea);
 }
 
-// ---------- Initiatives Summary tab (Strategic / High Touch, or anything with open risks/escalations) ----------
+// ---------- Key Initiatives tab (Strategic / High Touch, or anything with open risks/escalations) ----------
 function buildSummaryCards(){
   const cards = [];
   state.projects.forEach(p => {
@@ -2117,8 +2134,7 @@ function buildSummaryCards(){
       extraParts.push(`${openMs.length} upcoming milestone${openMs.length === 1 ? "" : "s"}`);
     }
     if (p.notes && p.notes.trim()){
-      const snippet = p.notes.trim().slice(0, 140);
-      extraParts.push(`Notes: ${esc(snippet)}${p.notes.trim().length > 140 ? "…" : ""}`);
+      extraParts.push(`Notes: ${esc(p.notes.trim())}`);
     }
 
     cards.push({
