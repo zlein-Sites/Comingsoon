@@ -4,7 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Delivery Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -374,13 +373,11 @@
 
   <div class="row" style="margin-bottom:10px;">
     <button class="btn btn-ghost" id="addProjectBtn">Add initiative</button>
-    <label class="btn btn-primary" for="loadDataInput">Load .xlsx workbook</label>
-    <input type="file" id="loadDataInput" accept=".xlsx,.xls" style="display:none;" />
-    <button class="btn btn-primary" id="exportDataBtn">Export updated workbook</button>
+    <button class="btn btn-primary" id="saveBtn">Save</button>
     <button class="btn btn-ghost" id="exportPdfBtn">Export PDF summary</button>
     <button class="btn btn-ghost" id="exportPptBtn">Export PPT summary</button>
   </div>
-  <p class="sub" id="saveHint" style="margin-top:-6px; margin-bottom:16px;">Edits save automatically and sync to everyone viewing this dashboard within a few seconds. Use "Load .xlsx workbook" / "Export updated workbook" for bulk imports or offline backups.</p>
+  <p class="sub" id="saveHint" style="margin-top:-6px; margin-bottom:16px;">Edits save automatically and sync to everyone viewing this dashboard within a few seconds. Click "Save" any time to sync immediately instead of waiting.</p>
 
   <div class="stats" id="stats"></div>
 
@@ -1126,160 +1123,9 @@ async function loadData(){
   setInterval(pollRemoteState, POLL_INTERVAL_MS);
 }
 
-function workbookToProjects(wb){
-  const projSheetName = wb.SheetNames.find(n => ["initiatives","projects"].includes(n.toLowerCase())) || wb.SheetNames[0];
-  const riskSheetName = wb.SheetNames.find(n => n.toLowerCase() === "risks");
-  const escSheetName = wb.SheetNames.find(n => n.toLowerCase() === "escalations");
-  const msSheetName = wb.SheetNames.find(n => n.toLowerCase() === "milestones");
-  const projRows = XLSX.utils.sheet_to_json(wb.Sheets[projSheetName], { defval: "" });
-  const riskRows = riskSheetName ? XLSX.utils.sheet_to_json(wb.Sheets[riskSheetName], { defval: "" }) : [];
-  const escRows = escSheetName ? XLSX.utils.sheet_to_json(wb.Sheets[escSheetName], { defval: "" }) : [];
-  const msRows = msSheetName ? XLSX.utils.sheet_to_json(wb.Sheets[msSheetName], { defval: "" }) : [];
-  const nameOf = r => r["Initiative Name"] || r["Project Name"] || ""; // accepts legacy column name too
-
-  const projects = projRows
-    .filter(r => (nameOf(r) || "").toString().trim() !== "")
-    .map(r => ({
-      id: uid(),
-      name: String(nameOf(r)),
-      product: String(r["Product"] || ""),
-      sdm: String(r["SDM"] || ""),
-      csm: String(r["CSM"] || ""),
-      startDate: toISODate(r["Start Date"]),
-      endDate: toISODate(r["End Date"]),
-      status: String(r["Status"] || "On Track"),
-      phase: String(r["Delivery Phase"] || r["Phase"] || ""),
-      segment: String(r["Segment"] || ""),
-      percentComplete: Number(r["% Complete"]) || 0,
-      contractValue: Number(r["Contract Value"] || r["TCV"]) || 0,
-      notes: String(r["Notes"] || ""),
-      risks: [],
-      escalations: [],
-      milestones: [],
-    }));
-
-  riskRows.forEach(r => {
-    const proj = projects.find(p => p.name === String(nameOf(r)));
-    if (!proj) return;
-    proj.risks.push({
-      id: uid(),
-      description: String(r["Risk Description"] || ""),
-      severity: String(r["Severity"] || "Medium"),
-      status: String(r["Status"] || "Open"),
-      owner: String(r["Owner"] || ""),
-      mitigation: String(r["Mitigation Plan"] || ""),
-      identifiedDate: toISODate(r["Date Identified"]),
-    });
-  });
-
-  escRows.forEach(r => {
-    const proj = projects.find(p => p.name === String(nameOf(r)));
-    if (!proj) return;
-    proj.escalations.push({
-      id: uid(),
-      description: String(r["Issue Description"] || r["Escalation Description"] || ""),
-      priority: String(r["Priority"] || "Medium"),
-      status: String(r["Status"] || "Open"),
-      impact: String(r["Impact"] || "Other"),
-      dateAdded: toISODate(r["Date Added"]),
-      owner: String(r["Current Owner"] || r["Owner"] || ""),
-      escalatedTo: String(r["Escalated To"] || ""),
-      dateEscalated: toISODate(r["Date Escalated"]),
-      expectedResolutionDate: toISODate(r["Expected Resolution Date"]),
-      notes: String(r["Notes"] || r["Resolution Notes"] || ""),
-    });
-  });
-
-  msRows.forEach(r => {
-    const proj = projects.find(p => p.name === String(nameOf(r)));
-    if (!proj) return;
-    proj.milestones.push({
-      id: uid(),
-      date: toISODate(r["Date"]),
-      milestone: String(r["Milestone"] || ""),
-      status: String(r["Status"] || "Not Started"),
-    });
-  });
-
-  return projects;
-}
-
-function projectsToWorkbook(){
-  const projRows = state.projects.map(p => ({
-    "Initiative Name": p.name, "Product": p.product, "SDM": p.sdm, "CSM": p.csm,
-    "Start Date": p.startDate, "End Date": p.endDate, "Status": p.status,
-    "Delivery Phase": p.phase || "", "Segment": p.segment || "", "% Complete": Number(p.percentComplete) || 0,
-    "Contract Value": Number(p.contractValue) || 0, "Notes": p.notes,
-  }));
-  const riskRows = [];
-  state.projects.forEach(p => (p.risks || []).forEach(r => riskRows.push({
-    "Initiative Name": p.name, "Risk Description": r.description, "Severity": r.severity,
-    "Status": r.status, "Owner": r.owner, "Mitigation Plan": r.mitigation,
-    "Date Identified": r.identifiedDate,
-  })));
-  const escRows = [];
-  state.projects.forEach(p => (p.escalations || []).forEach(e => escRows.push({
-    "Initiative Name": p.name, "Issue Description": e.description, "Priority": e.priority,
-    "Status": e.status, "Impact": e.impact, "Date Added": e.dateAdded,
-    "Current Owner": e.owner, "Escalated To": e.escalatedTo, "Date Escalated": e.dateEscalated,
-    "Expected Resolution Date": e.expectedResolutionDate, "Notes": e.notes,
-  })));
-  const msRows = [];
-  state.projects.forEach(p => (p.milestones || []).forEach(m => msRows.push({
-    "Initiative Name": p.name, "Date": m.date, "Milestone": m.milestone, "Status": m.status,
-  })));
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projRows, {
-    header: ["Initiative Name", "Product", "SDM", "CSM", "Start Date", "End Date", "Status", "Delivery Phase", "Segment", "% Complete", "Contract Value", "Notes"],
-  }), "Initiatives");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(riskRows, {
-    header: ["Initiative Name", "Risk Description", "Severity", "Status", "Owner", "Mitigation Plan", "Date Identified"],
-  }), "Risks");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(escRows, {
-    header: ["Initiative Name", "Issue Description", "Priority", "Status", "Impact", "Date Added",
-      "Current Owner", "Escalated To", "Date Escalated", "Expected Resolution Date", "Notes"],
-  }), "Escalations");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(msRows, {
-    header: ["Initiative Name", "Date", "Milestone", "Status"],
-  }), "Milestones");
-  return wb;
-}
-
-document.getElementById("exportDataBtn").addEventListener("click", () => {
-  if (!state.projects.length){
-    alert("Nothing to export yet — load a workbook or add an initiative first.");
-    return;
-  }
-  const active = document.activeElement;
-  if (active && rootEl.contains(active)) active.blur();
-  const wb = projectsToWorkbook();
-  XLSX.writeFile(wb, `delivery-dashboard-updated-${new Date().toISOString().slice(0,10)}.xlsx`);
-  setSaveStatus("Exported — share that file so others can load it");
-});
-
-document.getElementById("loadDataInput").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    try{
-      const data = new Uint8Array(evt.target.result);
-      const wb = XLSX.read(data, { type: "array", cellDates: true });
-      const projects = workbookToProjects(wb);
-      if (!projects.length) throw new Error("No project rows found");
-      state.projects = projects;
-      state.loaded = true;
-      setSaveStatus(`Loaded ${projects.length} initiative${projects.length===1?"":"s"} from file — syncing…`);
-      render();
-      pushRemoteState();
-    }catch(err){
-      console.error(err);
-      alert("Couldn't read that file. Make sure it's a .xlsx with an \"Initiatives\" tab and an \"Initiative Name\" column.");
-    }
-  };
-  reader.readAsArrayBuffer(file);
-  e.target.value = ""; // allow re-loading the same filename later
+document.getElementById("saveBtn").addEventListener("click", () => {
+  clearTimeout(saveTimer); // don't wait for the debounce — sync right now
+  pushRemoteState();
 });
 
 // ---------- PDF export (project summary) ----------

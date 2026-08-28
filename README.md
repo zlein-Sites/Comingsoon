@@ -15,9 +15,8 @@ No database or backend to provision — Blobs comes with every Netlify site.
   any other open browser picks up changes automatically. This gives
   near-real-time sync across everyone viewing the dashboard, without anyone
   needing to export or import a file.
-- The "Load .xlsx workbook" / "Export updated workbook" buttons still work,
-  for bulk imports or as an offline backup — importing a workbook also pushes
-  the result to the shared store so it propagates to everyone else.
+- Saving is automatic (debounced ~600ms after each edit). A "Save" button is
+  also available to force an immediate sync instead of waiting.
 
 ## Deploy on Netlify (via GitHub)
 
