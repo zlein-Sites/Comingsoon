@@ -1,0 +1,2938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Delivery Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+  body{ margin:0; }
+
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#F5F6F8; --surface:#FFFFFF; --surface2:#EEF1F4;
+    --ink:#1C2430; --ink-soft:#64707D; --border:#E1E4E9; --accent:#0F6B5C; --accent-soft:#DCEEE9;
+  }
+  *{ box-sizing:border-box; }
+  #dashboardScreen{ background:var(--bg); font-family:'Inter',sans-serif; color:var(--ink); }
+  .wrap{ max-width:1180px; margin:0 auto; padding:28px 20px 60px; }
+  h1{ font-family:'Fraunces',serif; font-size:30px; font-weight:600; margin:0; }
+  .sub{ color:var(--ink-soft); font-size:13.5px; margin-top:4px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .top{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:14px; margin-bottom:22px; }
+  .btn{ display:inline-flex; align-items:center; gap:6px; border:none; border-radius:8px; padding:9px 14px;
+        font-size:13.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-ghost{ background:var(--surface); border:1px solid var(--border); color:var(--ink); }
+  input[type=file]{ display:none; }
+  .stats{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat{ flex:1 1 160px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .stat .label{ font-size:11.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--ink-soft); }
+  .stat .value{ font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; margin-top:4px; }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+  .search{ display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border);
+           border-radius:8px; padding:7px 10px; flex:1 1 220px; max-width:320px; }
+  .search input{ border:none; outline:none; font-size:13.5px; width:100%; font-family:'Inter',sans-serif; }
+  select.filter{ border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:8px 10px;
+                 font-size:13px; font-family:'Inter',sans-serif; color:var(--ink); cursor:pointer; }
+  .empty{ text-align:center; padding:44px 20px; color:var(--ink-soft); background:var(--surface);
+          border:1px solid var(--border); border-radius:12px; }
+  .empty b{ color:var(--ink); }
+  .proj{ margin-bottom:10px; }
+  .proj-card{ display:flex; background:var(--surface); border-radius:12px; border:1px solid var(--border);
+              overflow:hidden; box-shadow:0 1px 2px rgba(28,36,48,.03); }
+  .spine{ width:5px; flex-shrink:0; }
+  .proj-body{ flex:1; display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px; padding:12px 14px; }
+  .proj-top-row{ flex:1 0 100%; display:flex; flex-wrap:nowrap; align-items:flex-start; gap:10px;
+             min-width:0; overflow-x:auto; padding-bottom:2px; }
+  .proj-top-row > *{ flex-shrink:1; min-width:0; }
+  .icon-btn{ border:none; background:transparent; cursor:pointer; color:var(--ink-soft); padding:2px; display:flex; }
+  .field{ font-family:'Inter',sans-serif; color:var(--ink); background:transparent; border:1px solid transparent;
+          border-radius:6px; padding:4px 6px; outline:none; width:100%; }
+  .field:focus{ border-color:var(--border); }
+  .field-mono{ font-family:'IBM Plex Mono',monospace; }
+  input[type="date"]{ padding-right:20px; position:relative; }
+  input[type="date"]::-webkit-calendar-picker-indicator{ opacity:0; position:absolute; right:0; top:0; width:20px; height:100%; margin:0; cursor:pointer; }
+  input[type="date"]::-webkit-inner-spin-button{ display:none; }
+  .date-wrap{ position:relative; display:block; width:100%; }
+  .date-wrap svg.date-icon{ position:absolute; right:5px; top:50%; transform:translateY(-50%); pointer-events:none; width:13px; height:13px; color:var(--ink-soft); }
+  .col-name{ min-width:180px; flex:1 1 220px; }
+  .proj-field-label{ font-size:10px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+             color:var(--ink-soft); display:block; margin-bottom:3px; }
+  .proj-field-wrap{ display:flex; flex-direction:column; }
+  .proj-field-wrap.spacer > .proj-field-label{ visibility:hidden; }
+  .name-textarea{ resize:none; overflow:hidden; white-space:normal; word-break:break-word;
+                   line-height:1.3; display:block; font-family:'Fraunces',serif; }
+  .wrap-textarea{ resize:none; overflow:hidden; white-space:normal; word-break:break-word;
+                   line-height:1.35; display:block; font-family:'Inter',sans-serif; }
+  .col-product{ min-width:160px; flex:0 1 190px; }
+  .col-sdm{ min-width:120px; flex:0 1 140px; }
+  .col-dates{ display:flex; align-items:flex-end; gap:6px; flex:0 0 auto; margin-right:22px; }
+  .col-cv{ flex:0 0 auto; display:flex; align-items:center; gap:2px; margin-right:4px; margin-left:4px; }
+  .badge{ appearance:none; border:none; outline:none; border-radius:20px; padding:5px 14px; font-size:12.5px;
+          font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; flex-shrink:0; }
+  .risk-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
+              font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .risk-panel{ margin-top:6px; margin-left:19px; padding:12px; border-radius:10px; background:var(--surface2);
+               border:1px dashed var(--border); }
+  .risk-head{ display:grid; grid-template-columns: minmax(160px,2.2fr) 90px minmax(160px,2.2fr) 110px 110px 28px;
+              gap:10px; padding:0 10px 6px; font-size:11px; font-weight:700; letter-spacing:.4px;
+              text-transform:uppercase; color:var(--ink-soft); }
+  .risk-row{ display:grid; grid-template-columns: minmax(160px,2.2fr) 90px minmax(160px,2.2fr) 110px 110px 28px;
+             gap:10px; align-items:start; padding:8px 10px; border-radius:8px; background:var(--surface);
+             border:1px solid var(--border); margin-bottom:6px; }
+  .risk-row select, .risk-row .icon-btn{ margin-top:2px; }
+  .sev-pill, .rstatus-select{ border:none; outline:none; border-radius:20px; padding:4px 10px; font-size:11.5px;
+             font-weight:700; text-align:center; cursor:pointer; font-family:'Inter',sans-serif; }
+  .add-risk{ margin-top:8px; display:flex; align-items:center; gap:6px; border:1px solid var(--border);
+             background:var(--surface); color:var(--accent); border-radius:8px; padding:6px 12px;
+             font-size:12.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .save-status{ font-size:12.5px; color:var(--ink-soft); }
+  svg.i{ width:14px; height:14px; }
+
+  .panel-section-title{ font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+             color:var(--ink-soft); margin:0 0 6px 2px; }
+  .esc-card{ background:var(--surface); border:1px solid var(--border); border-radius:10px;
+             padding:10px; margin-bottom:8px; }
+  .esc-top{ display:flex; gap:8px; align-items:flex-start; }
+  .esc-top .wrap-textarea{ flex:1 1 auto; }
+  .esc-grid{ display:grid; grid-template-columns:repeat(6, minmax(95px,1fr)); gap:8px; margin-top:8px; }
+  .esc-field select.field{ cursor:pointer; }
+  .esc-field label{ font-size:10px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+             color:var(--ink-soft); display:block; margin-bottom:2px; }
+  .esc-notes{ margin-top:8px; }
+  .esc-notes .wrap-textarea{ font-size:12.5px; }
+  .add-escalation{ margin-top:4px; display:flex; align-items:center; gap:6px; border:1px solid var(--border);
+             background:var(--surface); color:var(--accent); border-radius:8px; padding:6px 12px;
+             font-size:12.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .esc-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
+             font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .notes-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
+             font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .milestone-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
+             font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .milestone-row{ display:grid; grid-template-columns: 130px minmax(140px,1.8fr) 130px 28px;
+             gap:10px; align-items:center; padding:8px 10px; border-radius:8px; background:var(--surface);
+             border:1px solid var(--border); margin-bottom:6px; }
+  .milestone-head{ display:grid; grid-template-columns: 130px minmax(140px,1.8fr) 130px 28px;
+             gap:10px; padding:0 10px 6px; font-size:11px; font-weight:700; letter-spacing:.4px;
+             text-transform:uppercase; color:var(--ink-soft); }
+  .add-milestone{ margin-top:8px; display:flex; align-items:center; gap:6px; border:1px solid var(--border);
+             background:var(--surface); color:var(--accent); border-radius:8px; padding:6px 12px;
+             font-size:12.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+
+  .tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+  .tab-btn{ border:none; background:transparent; padding:9px 16px; font-size:13.5px; font-weight:600;
+            color:var(--ink-soft); cursor:pointer; font-family:'Inter',sans-serif; border-bottom:2px solid transparent;
+            margin-bottom:-1px; }
+  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+
+  .risk-wide-head{ display:grid; grid-template-columns: 76px minmax(160px,1.8fr) minmax(150px,1.6fr) 110px 100px 120px 28px;
+              gap:10px; padding:0 10px 6px; font-size:11px; font-weight:700; letter-spacing:.4px;
+              text-transform:uppercase; color:var(--ink-soft); }
+  .risk-wide-row{ display:grid; grid-template-columns: 76px minmax(160px,1.8fr) minmax(150px,1.6fr) 110px 100px 120px 28px;
+             gap:10px; align-items:start; padding:10px; border-radius:10px; background:var(--surface);
+             border:1px solid var(--border); margin-bottom:6px; }
+  .risk-wide-row select, .risk-wide-row input[type="date"], .risk-wide-row .icon-btn{ margin-top:2px; }
+  .proj-tag{ font-size:12.5px; font-weight:600; color:var(--ink); display:flex; align-items:center; }
+
+  .esc-wide-head{ display:grid; grid-template-columns: 76px 92px minmax(160px,1.7fr) 100px 130px 100px 110px 28px;
+              gap:10px; padding:0 10px 6px; font-size:11px; font-weight:700; letter-spacing:.4px;
+              text-transform:uppercase; color:var(--ink-soft); }
+  .esc-wide-row{ display:grid; grid-template-columns: 76px 92px minmax(160px,1.7fr) 100px 130px 100px 110px 28px;
+             gap:10px; align-items:start; padding:10px; border-radius:10px; background:var(--surface);
+             border:1px solid var(--border); margin-bottom:6px; }
+  .esc-wide-row select, .esc-wide-row input[type="date"], .esc-wide-row .icon-btn{ margin-top:2px; }
+  .sev-summary{ display:flex; gap:10px; margin-bottom:14px; }
+  .phase-group{ margin-bottom:22px; }
+  .phase-group-header{ display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px;
+             margin-bottom:10px; }
+  .phase-group-header .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .phase-group-header .title{ font-family:'Fraunces',serif; font-size:16px; font-weight:600; }
+  .phase-group-header .count{ font-size:12.5px; font-weight:600; opacity:0.85; }
+  .phase-group-header .tcv{ margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; }
+  .grouped-project-header{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:10px;
+             margin-bottom:8px; }
+  .grouped-project-header .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .grouped-project-header .title{ font-family:'Fraunces',serif; font-size:15px; font-weight:600; }
+  .grouped-project-header .count{ font-size:12px; font-weight:600; opacity:0.85; margin-left:2px; }
+  .sev-summary .chip{ display:flex; align-items:center; gap:6px; border-radius:20px; padding:6px 14px; font-size:12.5px; font-weight:700; }
+  .mini-chip{ display:inline-flex; align-items:center; border-radius:20px; font-weight:700; white-space:nowrap; }
+
+  .sumcard-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; }
+  .sumcard{ border-radius:10px; padding:18px 20px; border-left:4px solid var(--ink-soft); }
+  .sumcard-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .sumcard-top h3{ font-family:'Fraunces',serif; font-size:15.5px; font-weight:600; color:var(--ink); flex:1 1 auto; min-width:0; }
+  .sumcard-badge{ font-size:10.5px; font-weight:700; letter-spacing:0.3px; color:#fff; border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  .sumcard .sumcard-facts{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; line-height:1.5; }
+  .sumcard p{ font-size:13px; color:#3A3F45; margin:0 0 8px; line-height:1.5; }
+  .sumcard p:last-child{ margin-bottom:0; }
+  .sumcard .sumcard-extra{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+  @media (max-width: 760px){ .sumcard-grid{ grid-template-columns:1fr; } }
+
+
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --sp-dark-green:#074D43; --sp-verdant:#087A6A; --sp-light-green:#3B996D; --sp-tan:#F2EFE8;
+    --sp-ink:#2A2A2A; --sp-ink-soft:#5B6675; --sp-border:#E1E4E9; --sp-surface:#FFFFFF; --sp-bg:#F5F6F5;
+    --sp-brick:#B3452C; --sp-brick-soft:#F8E3DD; --sp-amber:#C98A2C; --sp-amber-soft:#F9EFDC;
+    --sp-violet:#6A5ACD; --sp-violet-soft:#ECE9F8;
+  }
+  *{ box-sizing:border-box; }
+  #splashScreen{ background:var(--sp-bg); font-family:'Inter',sans-serif; color:var(--sp-ink); }
+
+  /* ---- Header ---- */
+  .header{ background:var(--sp-dark-green); color:#fff; padding:22px 32px; display:flex;
+           justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; }
+  .header-left{ display:flex; align-items:center; gap:28px; flex-wrap:wrap; }
+  .logo{ display:flex; align-items:center; gap:9px; }
+  .logo svg{ width:26px; height:26px; flex-shrink:0; }
+  .logo span{ font-family:'Poppins',sans-serif; font-weight:700; font-size:19px; color:#fff; letter-spacing:0.2px; }
+  .header-title h1{ font-family:'Poppins',sans-serif; font-size:24px; font-weight:700; margin:0; color:#fff; }
+  .header-title p{ margin:4px 0 0; font-size:13px; color:#B9D8CF; }
+  .header-right{ text-align:right; font-size:12.5px; color:#CFE6DF; line-height:1.6; }
+  .header-right .live{ display:inline-flex; align-items:center; gap:6px; font-weight:600; color:#fff; }
+  .header-right .splash-dot{ width:7px; height:7px; border-radius:50%; background:#D4E585; display:inline-block; }
+
+  /* ---- Tabs ---- */
+  .tabbar{ background:var(--sp-surface); border-bottom:1px solid var(--sp-border); display:flex; gap:2px;
+           padding:0 24px; overflow-x:auto; }
+  .tab{ display:flex; align-items:center; gap:8px; padding:14px 16px; font-size:13.5px; font-weight:600;
+        color:var(--sp-ink-soft); text-decoration:none; border-bottom:3px solid transparent; white-space:nowrap;
+        cursor:pointer; }
+  .tab .sq{ width:9px; height:9px; border-radius:2px; background:var(--sp-border); flex-shrink:0; }
+  .tab.splash-active{ color:var(--sp-dark-green); border-bottom-color:var(--sp-verdant); }
+  .tab.splash-active .sq{ background:var(--sp-verdant); }
+  .tab .splash-badge{ background:var(--sp-brick); color:#fff; font-size:11px; font-weight:700; border-radius:10px;
+               padding:1px 7px; }
+  .tab .splash-badge.neutral{ background:var(--sp-verdant); }
+  .tab.disabled{ color:#B7BEC6; cursor:default; }
+  .tab.disabled .sq{ background:#E7E9EC; }
+
+  /* ---- Content ---- */
+  .content{ max-width:1180px; margin:0 auto; padding:28px 24px 60px; }
+
+  .cta-row{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+            margin-bottom:26px; }
+  .cta-row h2{ font-family:'Poppins',sans-serif; font-size:18px; font-weight:600; color:var(--sp-dark-green); margin:0; }
+  .cta-row p{ margin:4px 0 0; font-size:13px; color:var(--sp-ink-soft); }
+  .cta-btn{ display:inline-flex; align-items:center; gap:8px; background:var(--sp-verdant); color:#fff;
+            font-family:'Inter',sans-serif; font-weight:600; font-size:14px; padding:12px 20px;
+            border-radius:8px; text-decoration:none; flex-shrink:0; }
+  .cta-btn:hover{ background:var(--sp-dark-green); }
+
+  .splash-stats{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:32px; }
+  .splash-stat{ background:var(--sp-surface); border:1px solid var(--sp-border); border-radius:10px; padding:16px 18px; }
+  .splash-stat .splash-label{ font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--sp-ink-soft); }
+  .splash-stat .splash-value{ font-family:'Poppins',sans-serif; font-size:28px; font-weight:700; color:var(--sp-ink); margin-top:6px; }
+  .splash-stat .splash-sub{ font-size:12px; color:var(--sp-verdant); font-weight:600; margin-top:4px; }
+
+  .section-label{ display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:0.6px;
+                  text-transform:uppercase; color:var(--sp-brick); margin-bottom:14px; }
+  .section-label .splash-dot{ width:8px; height:8px; border-radius:50%; background:var(--sp-brick); }
+
+  .clusters{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; margin-bottom:36px; }
+  .narrative{ background:var(--sp-surface); border:1px solid var(--sp-border); border-left:4px solid var(--sp-verdant);
+              border-radius:10px; padding:24px 28px; margin-bottom:36px; }
+  .narrative h3{ font-family:'Poppins',sans-serif; font-size:14px; font-weight:600; color:var(--sp-dark-green);
+                 margin:20px 0 8px; }
+  .narrative h3:first-child{ margin-top:0; }
+  .narrative p{ font-size:13.5px; line-height:1.65; color:#3A3F45; margin:0 0 4px; }
+  .narrative b{ color:var(--sp-ink); }
+  .narrative .tag{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:9px;
+                    margin-right:2px; }
+  .narrative .tag.medium{ background:var(--sp-amber-soft); color:var(--sp-amber); }
+  .narrative .tag.ok{ background:#DCEEE9; color:var(--sp-verdant); }
+  .narrative .tag.risk{ background:var(--sp-amber-soft); color:var(--sp-amber); }
+  .narrative .tag.delay{ background:var(--sp-brick-soft); color:var(--sp-brick); }
+  .cluster{ border-radius:10px; padding:18px 20px; border-left:4px solid var(--sp-brick); background:var(--sp-brick-soft); }
+  .cluster.medium{ border-left-color:var(--sp-amber); background:var(--sp-amber-soft); }
+  .cluster.violet{ border-left-color:var(--sp-violet); background:var(--sp-violet-soft); }
+  .cluster-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .cluster-kind{ font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--sp-ink-soft); }
+  .cluster-badge{ font-size:10.5px; font-weight:700; letter-spacing:0.3px; color:#fff; border-radius:10px; padding:2px 9px; }
+  .cluster-badge.high{ background:var(--sp-brick); }
+  .cluster-badge.medium{ background:var(--sp-amber); }
+  .cluster h3{ font-family:'Poppins',sans-serif; font-size:15px; font-weight:600; margin:0 0 8px; color:var(--sp-ink); line-height:1.4; }
+  .cluster p{ font-size:13px; color:#4A4F55; margin:0 0 10px; line-height:1.5; }
+  .cluster .affected{ font-size:12.5px; color:var(--sp-ink); }
+  .cluster .affected b{ font-weight:700; }
+
+  @media (max-width: 760px){
+    .splash-stats{ grid-template-columns:repeat(2,1fr); }
+    .clusters{ grid-template-columns:1fr; }
+  }
+
+  /* Persistent top nav — header + tab bar stay visible across both screens and while scrolling */
+  .header{ position:sticky; top:0; z-index:100; }
+  .tabbar{ position:sticky; z-index:99; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">
+      <svg viewBox="0 0 26 26" fill="none"><rect x="2" y="13" width="10" height="11" fill="#fff"/><path d="M12 24 L22 13 L24 24 Z" fill="#fff"/></svg>
+      <span>verily health</span>
+    </div>
+    <div class="header-title">
+      <h1>Delivery Briefing</h1>
+      <p id="briefingDate">Delivery Operations · Portfolio Overview</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live"><span class="splash-dot"></span> Data as of <span id="asOfDate"></span></div>
+    <div>17 initiatives tracked · Delivery Dashboard live</div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <a class="tab splash-active" id="navTabOverview" href="#" onclick="navGoSplash(); return false;">
+    <span class="sq"></span> Portfolio Overview
+  </a>
+  <a class="tab" id="navTabSummary" href="#" onclick="navGoDashboard('summary'); return false;">
+    <span class="sq"></span> Initiatives Summary <span class="splash-badge neutral">4</span>
+  </a>
+  <a class="tab" id="navTabProjects" href="#" onclick="navGoDashboard('projects'); return false;">
+    <span class="sq"></span> All Initiatives <span class="splash-badge neutral">17</span>
+  </a>
+  <a class="tab" id="navTabPhase" href="#" onclick="navGoDashboard('phase'); return false;"><span class="sq"></span> Initiatives By Phase</a>
+  <a class="tab" id="navTabHealth" href="#" onclick="navGoDashboard('health'); return false;"><span class="sq"></span> Initiatives By Health</a>
+  <a class="tab" id="navTabRisks" href="#" onclick="navGoDashboard('risks'); return false;"><span class="sq"></span> All Risks <span class="splash-badge" id="openItemsBadge">5</span></a>
+  <a class="tab" id="navTabEscalations" href="#" onclick="navGoDashboard('escalations'); return false;"><span class="sq"></span> All Escalations</a>
+</div>
+
+<div id="splashScreen">
+
+
+  <div class="content">
+
+    <div class="cta-row">
+      <div>
+        <h2>Full delivery portfolio, live</h2>
+        <p>Every initiative, risk, escalation, and milestone — sorted, filtered, and fully editable.</p>
+      </div>
+    </div>
+
+    <div class="splash-stats">
+      <div class="splash-stat">
+        <div class="splash-label">Active Initiatives</div>
+        <div class="splash-value">17</div>
+        <div class="splash-sub">Across 10 products</div>
+      </div>
+      <div class="splash-stat">
+        <div class="splash-label">Total Contract Value</div>
+        <div class="splash-value">$46.2M</div>
+        <div class="splash-sub">Portfolio TCV</div>
+      </div>
+      <div class="splash-stat">
+        <div class="splash-label">Open Risks</div>
+        <div class="splash-value">4</div>
+        <div class="splash-sub" style="color:var(--sp-amber);">All Medium severity</div>
+      </div>
+      <div class="splash-stat">
+        <div class="splash-label">Open Escalations</div>
+        <div class="splash-value">1</div>
+        <div class="splash-sub" style="color:var(--sp-amber);">Bridge Analytics (Bayshore)</div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="splash-dot"></span> Portfolio Narrative</div>
+    <div class="narrative">
+
+      <h3>Overall status</h3>
+      <p>Across <b>17 active initiatives</b> totaling <b>$46.2M</b> in contract value, health is split roughly down the middle: <span class="tag ok">8 On Track</span> <span class="tag risk">8 At Risk</span> <span class="tag delay">1 Delayed</span>. No initiatives are currently On Hold or newly flagged Completed within this snapshot. The single Delayed initiative — Bridge Analytics (Bayshore), the portfolio's largest contract at $14.9M — is the one item worth watching most closely this week.</p>
+
+      <h3>Risks</h3>
+      <p>Four open risks are being tracked, and <b>all four are Medium severity</b> — there are no High-severity risks open right now. <b>Colorado WP1</b> carries half of them: a compressed delivery timeline that removed joint feedback and validation, and data-ingest challenges serious enough that Engineering has stood up a war room to remediate before the next contracted refresh. Separately, <b>All of Us (NIH/VUMC)</b> is carrying Workbench Migration carry-over work (Featured Workspaces, Data Explorer optimization) even though the initiative itself has moved into Go-Live &amp; Support at 90% complete, and <b>MJFF</b> has a data-migration risk gated by re-consenting, currently blocked on a Radboud/Verily agreement amendment under legal review.</p>
+
+      <h3>Escalations</h3>
+      <p>One active escalation: <b>Bridge Analytics (Bayshore)</b> leadership has requested an executive-level meeting to realign on partnership goals, expected to be scheduled in early September with resolution targeted for September 30 — worth tracking given it sits on the portfolio's largest initiative by contract value.</p>
+
+      <h3>What to watch</h3>
+      <p>Nothing in the portfolio is currently rated High severity, so this is a week of steady management rather than urgent firefighting — the main threads to keep an eye on are Colorado WP1's compressed timeline, the Bridge Analytics executive alignment meeting, and MJFF's legal/consent dependency, since all three sit on external parties rather than internal execution.</p>
+
+    </div>
+
+  </div>
+
+
+</div>
+
+<div id="dashboardScreen" style="display:none;">
+
+<div class="wrap">
+  <div class="top">
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+
+  <div class="row" style="margin-bottom:10px;">
+    <button class="btn btn-ghost" id="addProjectBtn">Add initiative</button>
+    <label class="btn btn-primary" for="loadDataInput">Load .xlsx workbook</label>
+    <input type="file" id="loadDataInput" accept=".xlsx,.xls" style="display:none;" />
+    <button class="btn btn-primary" id="exportDataBtn">Export updated workbook</button>
+    <button class="btn btn-ghost" id="exportPdfBtn">Export PDF summary</button>
+    <button class="btn btn-ghost" id="exportPptBtn">Export PPT summary</button>
+  </div>
+  <p class="sub" id="saveHint" style="margin-top:-6px; margin-bottom:16px;">This runs entirely from static files — nothing saves automatically. Click "Export updated workbook" when you're done editing, and share that file so others can load your changes.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs" id="tabs" style="display:none;">
+    <button class="tab-btn active" data-tab="projects" id="tabProjectsBtn">Initiatives</button>
+    <button class="tab-btn" data-tab="summary" id="tabSummaryBtn">Initiatives Summary</button>
+    <button class="tab-btn" data-tab="phase" id="tabPhaseBtn">Initiatives By Phase</button>
+    <button class="tab-btn" data-tab="health" id="tabHealthBtn">Initiatives By Health</button>
+    <button class="tab-btn" data-tab="risks" id="tabRisksBtn">All Risks</button>
+    <button class="tab-btn" data-tab="escalations" id="tabEscalationsBtn">All Escalations</button>
+  </div>
+
+  <div id="projectsTab">
+    <div class="toolbar" id="toolbar">
+      <div class="search">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" placeholder="Search initiative, SDM, CSM, or product" />
+      </div>
+      <select class="filter" id="statusFilter">
+        <option value="All">All health</option>
+      </select>
+      <select class="filter" id="sortBySelect">
+        <option value="none">Sort by…</option>
+        <option value="name">Initiative Name (A–Z)</option>
+        <option value="product">Product</option>
+        <option value="tcv">TCV</option>
+        <option value="sdm">SDM</option>
+        <option value="csm">CSM</option>
+        <option value="startDate">Start Date</option>
+        <option value="endDate">End Date</option>
+      </select>
+      <button class="btn btn-ghost" id="resetProjectFiltersBtn">Reset filters</button>
+    </div>
+
+    <div id="projectsRoot"></div>
+  </div>
+
+  <div id="risksTab" style="display:none;">
+    <div class="toolbar" id="riskToolbar">
+      <div class="search">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="riskSearchInput" placeholder="Search risk, initiative, or owner" />
+      </div>
+      <select class="filter" id="riskSeverityFilter">
+        <option value="All">All severities</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+      <select class="filter" id="riskStatusFilter">
+        <option value="All">All statuses</option>
+        <option value="Open">Open</option>
+        <option value="Mitigated">Mitigated</option>
+        <option value="Closed">Closed</option>
+      </select>
+      <button class="btn btn-ghost" id="resetRiskFiltersBtn">Reset filters</button>
+    </div>
+
+    <div class="sev-summary" id="riskSummary"></div>
+    <div id="risksRoot"></div>
+  </div>
+
+  <div id="escalationsTab" style="display:none;">
+    <div class="toolbar" id="escalationToolbar">
+      <div class="search">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="escalationSearchInput" placeholder="Search escalation, initiative, or owner" />
+      </div>
+      <select class="filter" id="escalationPriorityFilter">
+        <option value="All">All priorities</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+      <select class="filter" id="escalationStatusFilter">
+        <option value="All">All statuses</option>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+      <select class="filter" id="escalationImpactFilter">
+        <option value="All">All impacts</option>
+        <option value="Initiative Delay">Initiative Delay</option>
+        <option value="Quality Issues">Quality Issues</option>
+        <option value="Regulatory">Regulatory</option>
+        <option value="Other">Other</option>
+      </select>
+      <button class="btn btn-ghost" id="resetEscalationFiltersBtn">Reset filters</button>
+    </div>
+
+    <div class="sev-summary" id="escalationSummary"></div>
+    <div id="escalationsRoot"></div>
+  </div>
+
+  <div id="summaryTab" style="display:none;">
+    <p class="sub" style="margin-bottom:16px;">A narrative status check on initiatives that are Strategic or High Touch, or that currently have an open risk or escalation. Read-only — edit these fields from the Initiatives tab.</p>
+    <div id="summaryRoot"></div>
+  </div>
+
+  <div id="phaseTab" style="display:none;">
+    <div class="toolbar" id="phaseToolbar">
+      <div class="search">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="phaseSearchInput" placeholder="Search initiative, SDM, CSM, or product" />
+      </div>
+      <button class="btn btn-ghost" id="expandAllPhasesBtn">Expand all</button>
+      <button class="btn btn-ghost" id="collapseAllPhasesBtn">Collapse all</button>
+      <button class="btn btn-ghost" id="resetPhaseFiltersBtn">Reset filters</button>
+    </div>
+    <div id="phaseRoot"></div>
+  </div>
+
+  <div id="healthTab" style="display:none;">
+    <div class="toolbar" id="healthToolbar">
+      <div class="search">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="healthSearchInput" placeholder="Search initiative, SDM, CSM, or product" />
+      </div>
+      <button class="btn btn-ghost" id="expandAllHealthBtn">Expand all</button>
+      <button class="btn btn-ghost" id="collapseAllHealthBtn">Collapse all</button>
+      <button class="btn btn-ghost" id="resetHealthFiltersBtn">Reset filters</button>
+    </div>
+    <div id="healthRoot"></div>
+  </div>
+</div>
+
+
+</div>
+
+<script>
+
+const STATUS_META = {
+  "On Track": { color:"#0F6B5C", soft:"#DCEEE9" },
+  "At Risk": { color:"#C98A2C", soft:"#F7ECD8" },
+  "Delayed": { color:"#B3452C", soft:"#F6E4DE" },
+  "On Hold": { color:"#64707D", soft:"#E9EBEE" },
+  "Completed": { color:"#3E5C9A", soft:"#E3E8F3" },
+};
+const STATUS_ORDER = ["Delayed","At Risk","On Hold","On Track","Completed"];
+const PERCENT_OPTIONS = Array.from({ length: 101 }, (_, i) => i); // 0–100
+const SEVERITY_META = {
+  High:{color:"#B3452C",soft:"#F6E4DE"}, Medium:{color:"#C98A2C",soft:"#F7ECD8"}, Low:{color:"#3E7CB1",soft:"#E1EBF5"}
+};
+const RISK_STATUS = ["Open","Mitigated","Closed"];
+const RISK_STATUS_META = {
+  Open:{color:"#B3452C",soft:"#F6E4DE"}, Mitigated:{color:"#C98A2C",soft:"#F7ECD8"}, Closed:{color:"#0F6B5C",soft:"#DCEEE9"}
+};
+const ESCALATION_STATUS = ["Open","In Progress","Resolved"];
+const ESCALATION_STATUS_META = {
+  Open:{color:"#B3452C",soft:"#F6E4DE"}, "In Progress":{color:"#C98A2C",soft:"#F7ECD8"}, Resolved:{color:"#0F6B5C",soft:"#DCEEE9"}
+};
+const PRIORITY_META = SEVERITY_META; // same High/Medium/Low visual language as risk severity
+const IMPACT_OPTIONS = ["Initiative Delay", "Quality Issues", "Regulatory", "Other"];
+const MILESTONE_STATUS = ["Not Started", "In Progress", "Complete", "Delayed"];
+const MILESTONE_STATUS_META = {
+  "Not Started": { color: "#64707D", soft: "#E9EBEE" },
+  "In Progress": { color: "#C98A2C", soft: "#F7ECD8" },
+  "Complete": { color: "#0F6B5C", soft: "#DCEEE9" },
+  "Delayed": { color: "#B3452C", soft: "#F6E4DE" },
+};
+const PHASE_OPTIONS = ["Initiation", "Planning / Design", "Build & Deliver", "Validate", "Go-Live & Support"];
+const PHASE_META = {
+  "Initiation": { color: "#64707D", soft: "#E9EBEE" },
+  "Planning / Design": { color: "#3E7CB1", soft: "#E1EBF5" },
+  "Build & Deliver": { color: "#C98A2C", soft: "#F7ECD8" },
+  "Validate": { color: "#6A5ACD", soft: "#EDEAF9" },
+  "Go-Live & Support": { color: "#0F6B5C", soft: "#DCEEE9" },
+};
+const SEGMENT_OPTIONS = ["Strategic", "High Touch", "Medium Touch", "Low Touch"];
+const SEGMENT_META = {
+  "Strategic": { color: "#0F6B5C", soft: "#DCEEE9" },
+  "High Touch": { color: "#B3452C", soft: "#F6E4DE" },
+  "Medium Touch": { color: "#C98A2C", soft: "#F7ECD8" },
+  "Low Touch": { color: "#64707D", soft: "#E9EBEE" },
+};
+
+// Data baked into this file — the dashboard's starting point every time it's opened,
+// until you load a different data file via "Load data file" above.
+const SEED_DATA = [
+  {
+    "id": "1t7r33xh",
+    "name": "All of Us (NIH/VUMC)",
+    "product": "Workbench TRE/Data Ecosystem",
+    "sdm": "Sam Stewart",
+    "csm": "Katy Bannigan",
+    "startDate": "2025-02-01",
+    "endDate": "2030-01-31",
+    "status": "At Risk",
+    "phase": "Go-Live & Support",
+    "contractValue": 4900000,
+    "percentComplete": 90,
+    "notes": "Marked \"Go-Live & Support\" but some key deliverables are still pending to close workbench migration milestone. Therefore left at 90% complete. \n\nNote - TCV here is the projected 2026 revenue. There are several supplements that are TBD (~$5M) for new initiatives such Airlock, Federation, Partner Tier, and AI readiness. ",
+    "risks": [
+      {
+        "id": "1rf7c2qk",
+        "description": "Workbench Migration Carry Over deliverables (Featured Workspaces, Data Explorer Optimization, etc)",
+        "severity": "Medium",
+        "status": "Open",
+        "owner": "Katy Bannigan",
+        "mitigation": "Katy working with VUMC and internal Verily team to prioritize features, included committed Featured Workspace proposal as post migration plan. ",
+        "identifiedDate": "2026-08-27"
+      }
+    ],
+    "escalations": [],
+    "milestones": [
+      {
+        "id": "srof4tcn",
+        "date": "2026-06-26",
+        "milestone": "Workbench Migration ",
+        "status": "Complete"
+      }
+    ]
+  },
+  {
+    "id": "tquxvsj4",
+    "name": "SysBio FAIRplex (NIH)",
+    "product": "Workbench TRE",
+    "sdm": "Sam Stewart",
+    "csm": "Katy Bannigan",
+    "startDate": "2024-08-01",
+    "endDate": "2027-09-30",
+    "status": "On Track",
+    "phase": "Build & Deliver",
+    "contractValue": 4800000,
+    "percentComplete": 60,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "milestones": [
+      {
+        "id": "26zzz1yx",
+        "date": "2026-08-31",
+        "milestone": "Public Knowledge Portal Launch ",
+        "status": "In Progress"
+      },
+      {
+        "id": "mcmxoiga",
+        "date": "2026-06-30",
+        "milestone": "Public FAIRplex Ecosystem Launch (FAIRkit, Workbench, etc.)",
+        "status": "In Progress"
+      }
+    ]
+  },
+  {
+    "id": "q6awaycm",
+    "name": "Colorado WP1",
+    "product": "Refinery",
+    "sdm": "",
+    "csm": "",
+    "startDate": "2026-01-01",
+    "endDate": "2026-12-31",
+    "status": "At Risk",
+    "contractValue": 4000000,
+    "percentComplete": 30,
+    "notes": "",
+    "risks": [
+      {
+        "id": "bijfk4z1",
+        "description": "Condensing the timeline removed joint feedback and validation",
+        "severity": "Medium",
+        "status": "Open",
+        "owner": "",
+        "mitigation": "Continued focus on cross-functional prioritization of Colorado WP1 tasks/blockers",
+        "identifiedDate": "2026-08-27"
+      },
+      {
+        "id": "jz2gnatz",
+        "description": "Ingest challenges make mid-contract data refreshes internally unacceptable",
+        "severity": "Medium",
+        "status": "Open",
+        "owner": "",
+        "mitigation": "Engineering is performing war room to remediate issue",
+        "identifiedDate": "2026-08-27"
+      }
+    ],
+    "escalations": [],
+    "milestones": [
+      {
+        "id": "2tdelsu5",
+        "date": "2026-08-07",
+        "milestone": "Raw Model Output — Genomic & Surgical Pathology",
+        "status": "Complete"
+      },
+      {
+        "id": "nog7fkt9",
+        "date": "2026-09-16",
+        "milestone": "Raw Model Output — Imaging",
+        "status": "In Progress"
+      },
+      {
+        "id": "73trt8cr",
+        "date": "2026-08-27",
+        "milestone": "",
+        "status": "Not Started"
+      }
+    ],
+    "phase": "Build & Deliver"
+  },
+  {
+    "id": "blotqbi2",
+    "name": "Eye Care Partners",
+    "product": "Exchange + Refinery",
+    "sdm": "Whitney",
+    "csm": "",
+    "startDate": "2026-05-12",
+    "endDate": "2028-05-12",
+    "status": "On Track",
+    "contractValue": 906200,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "phase": "Build & Deliver",
+    "milestones": []
+  },
+  {
+    "id": "0cvv3ij3",
+    "name": "Bausch + Lomb - R&D WB",
+    "product": "LifeLong",
+    "sdm": "Laura",
+    "csm": "",
+    "startDate": "2026-04-09",
+    "endDate": "2029-04-09",
+    "status": "On Track",
+    "contractValue": 1200000,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "phase": "Build & Deliver",
+    "milestones": [
+      {
+        "id": "s9xww8o9",
+        "date": "2026-08-27",
+        "milestone": "",
+        "status": "Not Started"
+      }
+    ]
+  },
+  {
+    "id": "dtgmou9n",
+    "name": "Segmed - Data Generator WB",
+    "product": "Data Exchange",
+    "sdm": "Laura",
+    "csm": "",
+    "startDate": "2026-01-30",
+    "endDate": "2027-12-31",
+    "status": "On Track",
+    "contractValue": 506000,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "milestones": []
+  },
+  {
+    "id": "wgeefesm",
+    "name": " Transcripta Bio: Data Generator WB",
+    "product": "Data Exchange",
+    "sdm": "Laura",
+    "csm": "",
+    "startDate": "2026-02-02",
+    "endDate": "2029-02-02",
+    "status": "On Track",
+    "contractValue": 556000,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "milestones": []
+  },
+  {
+    "id": "f3xoazpa",
+    "name": "MJFF",
+    "product": "Immune Profiler",
+    "sdm": "Martin",
+    "csm": "",
+    "startDate": "",
+    "endDate": "2026-10-31",
+    "status": "At Risk",
+    "contractValue": 1370000,
+    "percentComplete": 0,
+    "notes": "Immune Profiler Xseq, WGS, and Cytokine lab processing is complete\nPre-PEP QC is complete and data ready for upload. Pending completion of PEP columns from Radboud\nRadboud emailed proposed changes to the Verily/Radboud collaboration agreement, under internal review with Legal",
+    "risks": [
+      {
+        "id": "7ucr4auj",
+        "description": "Data Migration to VWB delayed and gated by re-consenting. Re-consenting is blocked by by Radboud and agreements with BA and Verily/Radboud required amendments ",
+        "severity": "Medium",
+        "status": "Open",
+        "owner": "Martin",
+        "mitigation": "",
+        "identifiedDate": "2026-08-26"
+      }
+    ],
+    "escalations": [],
+    "milestones": []
+  },
+  {
+    "id": "905vqc06",
+    "name": "Genentech",
+    "product": "Workbench TRE",
+    "sdm": "Whitney",
+    "csm": "",
+    "startDate": "2025-03-31",
+    "endDate": "2028-03-31",
+    "status": "At Risk",
+    "contractValue": 5750000,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "milestones": []
+  },
+  {
+    "id": "r80ixhav",
+    "name": "Oxford/GSK",
+    "product": "Workbench TRE",
+    "sdm": "Whitney",
+    "csm": "",
+    "startDate": "2025-02-07",
+    "endDate": "2026-05-06",
+    "status": "On Track",
+    "contractValue": 400000,
+    "percentComplete": 0,
+    "notes": "- Oxford has communicated their priorities for Year 2 - Nextflow, data management capabilities, and better error messaging\n- Working on product prioritization of features of interest - both related to Enterprise exchange and Workbench. Exchange team will present their vision to Oxford on 24Aug. \n",
+    "risks": [],
+    "escalations": [],
+    "milestones": []
+  },
+  {
+    "id": "zr7w2b5o",
+    "name": "Bridge Analytics (Bayshore)",
+    "product": "Workbench TRE",
+    "sdm": "Whitney",
+    "csm": "",
+    "startDate": "2025-02-26",
+    "endDate": "2030-02-06",
+    "status": "Delayed",
+    "contractValue": 14900000,
+    "percentComplete": 0,
+    "notes": "Bridge reengaged on data interoperability goals - team discussing SOW and security details",
+    "risks": [],
+    "escalations": [
+      {
+        "id": "v4eiai9j",
+        "description": "",
+        "priority": "Medium",
+        "status": "Open",
+        "impact": "Other",
+        "dateAdded": "2026-08-26",
+        "owner": "Whitney",
+        "escalatedTo": "",
+        "dateEscalated": "2026-08-26",
+        "expectedResolutionDate": "2026-09-30",
+        "notes": "Bridge leadership requiring an executive meeting to align on partnership goals and requested MFJJ to be included - to be scheduled in early Sept"
+      }
+    ],
+    "milestones": []
+  },
+  {
+    "id": "cxtg2rkz",
+    "name": "Novartis AGNOS",
+    "product": "Study Watch",
+    "sdm": "Laura",
+    "csm": "",
+    "startDate": "2021-04-30",
+    "endDate": "2026-09-30",
+    "status": "At Risk",
+    "contractValue": 1600000,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "milestones": []
+  },
+  {
+    "id": "md8mhnq1",
+    "name": "Biogen LUMA",
+    "product": "Study Watch",
+    "sdm": "Carly",
+    "csm": "",
+    "startDate": "2022-12-14",
+    "endDate": "2026-06-06",
+    "status": "On Track",
+    "contractValue": 1800000,
+    "percentComplete": 0,
+    "notes": "",
+    "risks": [],
+    "escalations": [],
+    "phase": "Build & Deliver",
+    "milestones": []
+  },
+  {
+    "id": "h0f5l4vr",
+    "name": "Novartis SOSTOS",
+    "product": "Study Watch",
+    "sdm": "Laura",
+    "startDate": "2026-08-25",
+    "endDate": "2026-08-25",
+    "status": "At Risk",
+    "contractValue": 1090000,
+    "notes": "",
+    "risks": [],
+    "phase": "Build & Deliver",
+    "escalations": [],
+    "milestones": [],
+    "csm": "",
+    "percentComplete": 0
+  },
+  {
+    "id": "kinu94qy",
+    "name": "ADHD (Otsuka)",
+    "product": "Study Watch",
+    "sdm": "Martin",
+    "startDate": "2024-12-06",
+    "endDate": "2026-06-15",
+    "status": "On Track",
+    "contractValue": 462000,
+    "notes": "",
+    "risks": [],
+    "phase": "Build & Deliver",
+    "csm": "",
+    "escalations": [],
+    "milestones": [],
+    "percentComplete": 0
+  },
+  {
+    "id": "0j5uljp3",
+    "name": "Sjogrens (Otsuka)",
+    "product": "Study Watch",
+    "sdm": "Martin",
+    "startDate": "2024-12-06",
+    "endDate": "2026-11-15",
+    "status": "At Risk",
+    "contractValue": 540000,
+    "notes": "",
+    "risks": [],
+    "phase": "Build & Deliver",
+    "escalations": [],
+    "milestones": [],
+    "csm": "",
+    "percentComplete": 0
+  },
+  {
+    "id": "o64v7ojm",
+    "name": "Denali",
+    "product": "Study Watch",
+    "sdm": "Martin",
+    "startDate": "2024-07-18",
+    "endDate": "2029-03-28",
+    "status": "At Risk",
+    "contractValue": 1400000,
+    "notes": "",
+    "risks": [],
+    "phase": "Build & Deliver",
+    "escalations": [],
+    "milestones": [],
+    "csm": "",
+    "percentComplete": 0
+  }
+];
+
+let state = {
+  projects: [],
+  expandedSection: {}, // projectId -> "notes" | "milestones" | "risks" | "escalations" | null
+  lastSection: {},     // projectId -> last section shown (remembered for the chevron toggle)
+  search: "",
+  statusFilter: "All",
+  sortBy: "none",
+  loaded: false,
+  activeTab: "projects",
+  riskSearch: "",
+  riskSeverityFilter: "All",
+  riskStatusFilter: "All",
+  escalationSearch: "",
+  escalationPriorityFilter: "All",
+  escalationStatusFilter: "All",
+  escalationImpactFilter: "All",
+  phaseSearch: "",
+  collapsedPhases: Object.fromEntries(PHASE_OPTIONS.map(p => [p, true])),
+  healthSearch: "",
+  collapsedHealthGroups: Object.fromEntries(STATUS_ORDER.map(s => [s, true])),
+  collapsedRiskGroups: {},
+  collapsedEscalationGroups: {},
+};
+let pendingDeleteProjectId = null;
+let pendingDeleteTimer = null;
+
+const uid = () => Math.random().toString(36).slice(2,10);
+const fmtCurrency = v => (Number(v)||0).toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0});
+const toISODate = v => {
+  if (!v) return "";
+  if (v instanceof Date) return v.toISOString().slice(0,10);
+  if (typeof v === "string") {
+    const m = v.match(/^\d{4}-\d{2}-\d{2}/);
+    if (m) return m[0];
+    const d = new Date(v);
+    if (!isNaN(d)) return d.toISOString().slice(0,10);
+  }
+  return String(v);
+};
+
+const DATE_FIELDS = new Set(["startDate", "endDate", "identifiedDate", "dateAdded", "dateEscalated", "expectedResolutionDate"]);
+
+// Accepts loosely-typed dates (2026-08-26, 08/26/2026, 8-26-26, 20260826, etc.)
+// and normalizes to YYYY-MM-DD. Leaves anything it can't confidently parse as-is,
+// rather than rejecting the input outright.
+function normalizeDateInput(raw){
+  const value = (raw || "").trim();
+  if (!value) return "";
+
+  const pad = n => String(n).padStart(2, "0");
+  const fullYear = y => (y.length === 2 ? (Number(y) < 50 ? "20" + y : "19" + y) : y);
+
+  let m = value.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+
+  m = value.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+  if (m) return `${fullYear(m[3])}-${pad(m[1])}-${pad(m[2])}`;
+
+  m = value.match(/^(\d{8})$/);
+  if (m) {
+    const s = m[1];
+    return /^(19|20)\d{2}/.test(s) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : `${s.slice(4,8)}-${s.slice(0,2)}-${s.slice(2,4)}`;
+  }
+
+  const parsed = new Date(value);
+  if (!isNaN(parsed) && /[a-zA-Z]/.test(value)) { // e.g. "Aug 26 2026" — only trust Date() when it had a month name
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return value; // couldn't confidently parse — keep what they typed rather than reject it
+}
+
+// ---------- persistence (file-based — no server/backend required at all) ----------
+// This dashboard runs entirely from static files. It starts with the data baked
+// into SEED_DATA below. To share updates, use "Export data file" to download a
+// .json snapshot, and have people "Load data file" to bring it back in — there's
+// no server-side write anywhere, so saving is a manual (but simple) step.
+async function loadData(){
+  state.projects = JSON.parse(JSON.stringify(SEED_DATA));
+  state.loaded = true;
+  const hashTab = (location.hash || "").replace("#", "");
+  if (["projects", "summary", "phase", "health", "risks", "escalations"].includes(hashTab)){
+    state.activeTab = hashTab;
+  }
+  render();
+}
+
+function setSaveStatus(msg, isError){
+  const el = document.getElementById("saveStatus");
+  el.textContent = msg;
+  el.style.color = isError ? "#B3452C" : "";
+}
+
+// Edits live in memory only until exported — there is no server this file talks to.
+function scheduleSave(){
+  setSaveStatus("Unsaved changes — click \"Export data file\" to save a copy");
+}
+
+function workbookToProjects(wb){
+  const projSheetName = wb.SheetNames.find(n => ["initiatives","projects"].includes(n.toLowerCase())) || wb.SheetNames[0];
+  const riskSheetName = wb.SheetNames.find(n => n.toLowerCase() === "risks");
+  const escSheetName = wb.SheetNames.find(n => n.toLowerCase() === "escalations");
+  const msSheetName = wb.SheetNames.find(n => n.toLowerCase() === "milestones");
+  const projRows = XLSX.utils.sheet_to_json(wb.Sheets[projSheetName], { defval: "" });
+  const riskRows = riskSheetName ? XLSX.utils.sheet_to_json(wb.Sheets[riskSheetName], { defval: "" }) : [];
+  const escRows = escSheetName ? XLSX.utils.sheet_to_json(wb.Sheets[escSheetName], { defval: "" }) : [];
+  const msRows = msSheetName ? XLSX.utils.sheet_to_json(wb.Sheets[msSheetName], { defval: "" }) : [];
+  const nameOf = r => r["Initiative Name"] || r["Project Name"] || ""; // accepts legacy column name too
+
+  const projects = projRows
+    .filter(r => (nameOf(r) || "").toString().trim() !== "")
+    .map(r => ({
+      id: uid(),
+      name: String(nameOf(r)),
+      product: String(r["Product"] || ""),
+      sdm: String(r["SDM"] || ""),
+      csm: String(r["CSM"] || ""),
+      startDate: toISODate(r["Start Date"]),
+      endDate: toISODate(r["End Date"]),
+      status: String(r["Status"] || "On Track"),
+      phase: String(r["Delivery Phase"] || r["Phase"] || ""),
+      segment: String(r["Segment"] || ""),
+      percentComplete: Number(r["% Complete"]) || 0,
+      contractValue: Number(r["Contract Value"] || r["TCV"]) || 0,
+      notes: String(r["Notes"] || ""),
+      risks: [],
+      escalations: [],
+      milestones: [],
+    }));
+
+  riskRows.forEach(r => {
+    const proj = projects.find(p => p.name === String(nameOf(r)));
+    if (!proj) return;
+    proj.risks.push({
+      id: uid(),
+      description: String(r["Risk Description"] || ""),
+      severity: String(r["Severity"] || "Medium"),
+      status: String(r["Status"] || "Open"),
+      owner: String(r["Owner"] || ""),
+      mitigation: String(r["Mitigation Plan"] || ""),
+      identifiedDate: toISODate(r["Date Identified"]),
+    });
+  });
+
+  escRows.forEach(r => {
+    const proj = projects.find(p => p.name === String(nameOf(r)));
+    if (!proj) return;
+    proj.escalations.push({
+      id: uid(),
+      description: String(r["Issue Description"] || r["Escalation Description"] || ""),
+      priority: String(r["Priority"] || "Medium"),
+      status: String(r["Status"] || "Open"),
+      impact: String(r["Impact"] || "Other"),
+      dateAdded: toISODate(r["Date Added"]),
+      owner: String(r["Current Owner"] || r["Owner"] || ""),
+      escalatedTo: String(r["Escalated To"] || ""),
+      dateEscalated: toISODate(r["Date Escalated"]),
+      expectedResolutionDate: toISODate(r["Expected Resolution Date"]),
+      notes: String(r["Notes"] || r["Resolution Notes"] || ""),
+    });
+  });
+
+  msRows.forEach(r => {
+    const proj = projects.find(p => p.name === String(nameOf(r)));
+    if (!proj) return;
+    proj.milestones.push({
+      id: uid(),
+      date: toISODate(r["Date"]),
+      milestone: String(r["Milestone"] || ""),
+      status: String(r["Status"] || "Not Started"),
+    });
+  });
+
+  return projects;
+}
+
+function projectsToWorkbook(){
+  const projRows = state.projects.map(p => ({
+    "Initiative Name": p.name, "Product": p.product, "SDM": p.sdm, "CSM": p.csm,
+    "Start Date": p.startDate, "End Date": p.endDate, "Status": p.status,
+    "Delivery Phase": p.phase || "", "Segment": p.segment || "", "% Complete": Number(p.percentComplete) || 0,
+    "Contract Value": Number(p.contractValue) || 0, "Notes": p.notes,
+  }));
+  const riskRows = [];
+  state.projects.forEach(p => (p.risks || []).forEach(r => riskRows.push({
+    "Initiative Name": p.name, "Risk Description": r.description, "Severity": r.severity,
+    "Status": r.status, "Owner": r.owner, "Mitigation Plan": r.mitigation,
+    "Date Identified": r.identifiedDate,
+  })));
+  const escRows = [];
+  state.projects.forEach(p => (p.escalations || []).forEach(e => escRows.push({
+    "Initiative Name": p.name, "Issue Description": e.description, "Priority": e.priority,
+    "Status": e.status, "Impact": e.impact, "Date Added": e.dateAdded,
+    "Current Owner": e.owner, "Escalated To": e.escalatedTo, "Date Escalated": e.dateEscalated,
+    "Expected Resolution Date": e.expectedResolutionDate, "Notes": e.notes,
+  })));
+  const msRows = [];
+  state.projects.forEach(p => (p.milestones || []).forEach(m => msRows.push({
+    "Initiative Name": p.name, "Date": m.date, "Milestone": m.milestone, "Status": m.status,
+  })));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projRows, {
+    header: ["Initiative Name", "Product", "SDM", "CSM", "Start Date", "End Date", "Status", "Delivery Phase", "Segment", "% Complete", "Contract Value", "Notes"],
+  }), "Initiatives");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(riskRows, {
+    header: ["Initiative Name", "Risk Description", "Severity", "Status", "Owner", "Mitigation Plan", "Date Identified"],
+  }), "Risks");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(escRows, {
+    header: ["Initiative Name", "Issue Description", "Priority", "Status", "Impact", "Date Added",
+      "Current Owner", "Escalated To", "Date Escalated", "Expected Resolution Date", "Notes"],
+  }), "Escalations");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(msRows, {
+    header: ["Initiative Name", "Date", "Milestone", "Status"],
+  }), "Milestones");
+  return wb;
+}
+
+document.getElementById("exportDataBtn").addEventListener("click", () => {
+  if (!state.projects.length){
+    alert("Nothing to export yet — load a workbook or add an initiative first.");
+    return;
+  }
+  const active = document.activeElement;
+  if (active && rootEl.contains(active)) active.blur();
+  const wb = projectsToWorkbook();
+  XLSX.writeFile(wb, `delivery-dashboard-updated-${new Date().toISOString().slice(0,10)}.xlsx`);
+  setSaveStatus("Exported — share that file so others can load it");
+});
+
+document.getElementById("loadDataInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, { type: "array", cellDates: true });
+      const projects = workbookToProjects(wb);
+      if (!projects.length) throw new Error("No project rows found");
+      state.projects = projects;
+      state.loaded = true;
+      const subtitleEl = document.getElementById("subtitle");
+      if (subtitleEl) subtitleEl.textContent = `Loaded from ${file.name} — every field is live and editable.`;
+      setSaveStatus(`Loaded ${projects.length} initiative${projects.length===1?"":"s"} from file`);
+      render();
+    }catch(err){
+      console.error(err);
+      alert("Couldn't read that file. Make sure it's a .xlsx with an \"Initiatives\" tab and an \"Initiative Name\" column.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = ""; // allow re-loading the same filename later
+});
+
+// ---------- PDF export (project summary) ----------
+function exportPdfSummary(){
+  if (!state.projects.length){
+    alert("No initiatives to export yet.");
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const MARGIN = 40;
+
+  const STATUS_COLOR = {
+    "On Track": [15, 107, 91], "At Risk": [201, 138, 44], "Delayed": [179, 69, 44],
+    "On Hold": [100, 112, 125], "Completed": [62, 92, 154],
+  };
+  const SEV_COLOR = { High: [179, 69, 44], Medium: [201, 138, 44], Low: [62, 124, 177] };
+  const ESC_STATUS_COLOR = { Open: [179, 69, 44], "In Progress": [201, 138, 44], Resolved: [15, 107, 91] };
+  const PHASE_COLOR = {
+    "Initiation": [100, 112, 125], "Planning / Design": [62, 124, 177], "Build & Deliver": [201, 138, 44],
+    "Validate": [106, 90, 205], "Go-Live & Support": [15, 107, 91],
+  };
+  const SEGMENT_COLOR = {
+    "Strategic": [15, 107, 91], "High Touch": [179, 69, 44], "Medium Touch": [201, 138, 44], "Low Touch": [100, 112, 125],
+  };
+
+  const projects = filteredProjects();
+  const totalValue = state.projects.reduce((s,p) => s + (Number(p.contractValue)||0), 0);
+  const openRisks = state.projects.reduce((s,p) => s + p.risks.filter(r => r.status !== "Closed").length, 0);
+  const openEscalations = state.projects.reduce((s,p) => s + (p.escalations || []).filter(e => e.status !== "Resolved").length, 0);
+  const generatedAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(28, 36, 48);
+  doc.text("Delivery Dashboard — Initiative Summary", MARGIN, 44);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 112, 125);
+  doc.text(`Generated ${generatedAt}`, MARGIN, 60);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(28, 36, 48);
+  const summaryY = 82;
+  const summaryItems = [
+    `Active Projects: ${state.projects.length}`,
+    `Total TCV: ${fmtCurrency(totalValue)}`,
+    `Open Risks: ${openRisks}`,
+    `Open Escalations: ${openEscalations}`,
+  ];
+  const colWidth = (pageWidth - MARGIN * 2) / summaryItems.length;
+  summaryItems.forEach((item, i) => doc.text(item, MARGIN + i * colWidth, summaryY));
+
+  // ---- Overview table (one row per project) ----
+  const rows = projects.map(p => {
+    const openR = p.risks.filter(r => r.status !== "Closed").length;
+    const openE = (p.escalations || []).filter(e => e.status !== "Resolved").length;
+    return [
+      p.name || "Untitled initiative", p.product || "—", p.sdm || "—", p.csm || "—",
+      p.startDate || "—", p.endDate || "—", p.status || "—", p.phase || "—", p.segment || "—",
+      `${Number(p.percentComplete)||0}%`,
+      fmtCurrency(p.contractValue), String(openR), String(openE), p.notes || "",
+    ];
+  });
+
+  doc.autoTable({
+    startY: summaryY + 16,
+    head: [["Initiative", "Product", "SDM", "CSM", "Start", "End", "Health", "Delivery Phase", "Segment", "% Complete", "TCV", "Open Risks", "Open Esc.", "Notes"]],
+    body: rows,
+    styles: { font: "helvetica", fontSize: 8.5, textColor: [28, 36, 48], cellPadding: 5 },
+    headStyles: { fillColor: [28, 36, 48], textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [245, 246, 248] },
+    columnStyles: {
+      0: { cellWidth: 85 }, 8: { cellWidth: 62 }, 9: { cellWidth: 45, halign: "center" },
+      10: { cellWidth: 50, halign: "right" },
+      11: { cellWidth: 42, halign: "center" }, 12: { cellWidth: 42, halign: "center" },
+      13: { cellWidth: 100 },
+    },
+    margin: { left: MARGIN, right: MARGIN },
+    didParseCell: (data) => {
+      if (data.section === "body" && data.column.index === 6){
+        const color = STATUS_COLOR[data.cell.raw];
+        if (color) data.cell.styles.textColor = color;
+        data.cell.styles.fontStyle = "bold";
+      }
+      if (data.section === "body" && data.column.index === 7){
+        const color = PHASE_COLOR[data.cell.raw];
+        if (color) data.cell.styles.textColor = color;
+        data.cell.styles.fontStyle = "bold";
+      }
+      if (data.section === "body" && data.column.index === 8){
+        const color = SEGMENT_COLOR[data.cell.raw];
+        if (color) data.cell.styles.textColor = color;
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
+  });
+
+  // ---- Per-project detail: Risks and Escalations ----
+  doc.addPage();
+  let y = MARGIN;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(28, 36, 48);
+  doc.text("Initiative Detail — Risks & Escalations", MARGIN, y);
+  y += 22;
+
+  const ensureSpace = (needed) => {
+    if (y + needed > pageHeight - MARGIN){
+      doc.addPage();
+      y = MARGIN;
+    }
+  };
+
+  projects.forEach((p) => {
+    const risks = p.risks || [];
+    const escalations = p.escalations || [];
+    const milestones = p.milestones || [];
+
+    ensureSpace(46);
+    const statusColor = STATUS_COLOR[p.status] || [28, 36, 48];
+    const projName = p.name || "Untitled initiative";
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(28, 36, 48);
+    const nameWidth = doc.getTextWidth(projName); // measure BEFORE changing font size for the status label
+    doc.text(projName, MARGIN, y);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    const statusLabel = String(p.status || "");
+    const statusX = MARGIN + nameWidth + 14;
+    const statusPadX = 5;
+    const statusWidth = doc.getTextWidth(statusLabel) + statusPadX * 2;
+    doc.setFillColor(...statusColor.map(c => Math.min(255, Math.round(c + (255 - c) * 0.85))));
+    doc.roundedRect(statusX - statusPadX, y - 10, statusWidth, 13, 3, 3, "F");
+    doc.setTextColor(...statusColor);
+    doc.text(statusLabel, statusX, y);
+
+    y += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 112, 125);
+    doc.text(`${p.product || "—"}  |  SDM: ${p.sdm || "—"}  |  CSM: ${p.csm || "—"}  |  Delivery Phase: ${p.phase || "—"}  |  Segment: ${p.segment || "—"}  |  ${p.startDate || "—"} to ${p.endDate || "—"}  |  ${fmtCurrency(p.contractValue)}`, MARGIN, y);
+    y += 12;
+
+    if (p.notes && p.notes.trim()){
+      const noteLines = doc.splitTextToSize(p.notes.trim(), pageWidth - MARGIN * 2);
+      ensureSpace(noteLines.length * 11 + 16);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(28, 36, 48);
+      doc.text("Notes", MARGIN, y + 4);
+      y += 14;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(60, 68, 78);
+      doc.text(noteLines, MARGIN, y);
+      y += noteLines.length * 11 + 6;
+    }
+
+    if (milestones.length){
+      ensureSpace(28);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(28, 36, 48);
+      doc.text("Key Milestones", MARGIN, y + 4);
+      y += 8;
+      const msStatusColors = { "Not Started": [100,112,125], "In Progress": [201,138,44], "Complete": [15,107,91], "Delayed": [179,69,44] };
+      doc.autoTable({
+        startY: y,
+        head: [["Date", "Milestone", "Status"]],
+        body: milestones.map(m => [m.date || "", m.milestone || "", m.status || ""]),
+        styles: { font: "helvetica", fontSize: 8, textColor: [28, 36, 48], cellPadding: 4 },
+        headStyles: { fillColor: [238, 241, 244], textColor: [28, 36, 48], fontStyle: "bold", lineWidth: 0.5, lineColor: [225, 228, 233] },
+        alternateRowStyles: { fillColor: [250, 250, 251] },
+        margin: { left: MARGIN, right: MARGIN },
+        tableWidth: pageWidth - MARGIN * 2,
+        columnStyles: { 0: { cellWidth: 75 }, 2: { cellWidth: 85 } },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 2){
+            const c = msStatusColors[data.cell.raw]; if (c) data.cell.styles.textColor = c;
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 10;
+    }
+
+    if (risks.length){
+      ensureSpace(28);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(28, 36, 48);
+      doc.text("Risks", MARGIN, y + 4);
+      y += 8;
+      doc.autoTable({
+        startY: y,
+        head: [["Risk", "Severity", "Status", "Owner", "Mitigation", "Identified"]],
+        body: risks.map(r => [r.description || "", r.severity || "", r.status || "", r.owner || "", r.mitigation || "", r.identifiedDate || ""]),
+        styles: { font: "helvetica", fontSize: 8, textColor: [28, 36, 48], cellPadding: 4 },
+        headStyles: { fillColor: [238, 241, 244], textColor: [28, 36, 48], fontStyle: "bold", lineWidth: 0.5, lineColor: [225, 228, 233] },
+        alternateRowStyles: { fillColor: [250, 250, 251] },
+        margin: { left: MARGIN, right: MARGIN },
+        tableWidth: pageWidth - MARGIN * 2,
+        columnStyles: { 1: { cellWidth: 55 }, 2: { cellWidth: 60 }, 3: { cellWidth: 85 }, 5: { cellWidth: 65 } },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 1){
+            const c = SEV_COLOR[data.cell.raw]; if (c) data.cell.styles.textColor = c;
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+        didDrawPage: () => {},
+      });
+      y = doc.lastAutoTable.finalY + 10;
+    }
+
+    if (escalations.length){
+      ensureSpace(28);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(28, 36, 48);
+      doc.text("Escalations", MARGIN, y + 4);
+      y += 8;
+      doc.autoTable({
+        startY: y,
+        head: [["Issue", "Priority", "Impact", "Status", "Owner", "Escalated To", "Expected Resolution"]],
+        body: escalations.map(e => [
+          e.description || "", e.priority || "", e.impact || "", e.status || "",
+          e.owner || "", e.escalatedTo || "", e.expectedResolutionDate || "",
+        ]),
+        styles: { font: "helvetica", fontSize: 8, textColor: [28, 36, 48], cellPadding: 4 },
+        headStyles: { fillColor: [238, 241, 244], textColor: [28, 36, 48], fontStyle: "bold", lineWidth: 0.5, lineColor: [225, 228, 233] },
+        alternateRowStyles: { fillColor: [250, 250, 251] },
+        margin: { left: MARGIN, right: MARGIN },
+        tableWidth: pageWidth - MARGIN * 2,
+        columnStyles: { 1: { cellWidth: 55 }, 2: { cellWidth: 75 }, 3: { cellWidth: 65 }, 6: { cellWidth: 90 } },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 1){
+            const c = SEV_COLOR[data.cell.raw]; if (c) data.cell.styles.textColor = c;
+            data.cell.styles.fontStyle = "bold";
+          }
+          if (data.section === "body" && data.column.index === 3){
+            const c = ESC_STATUS_COLOR[data.cell.raw]; if (c) data.cell.styles.textColor = c;
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 10;
+    }
+
+    if (!risks.length && !escalations.length){
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 112, 125);
+      doc.text("No open risks or escalations logged.", MARGIN, y + 4);
+      y += 14;
+    }
+
+    y += 14; // spacing before next project
+  });
+
+  doc.save(`delivery-dashboard-summary-${new Date().toISOString().slice(0,10)}.pdf`);
+}
+document.getElementById("exportPdfBtn").addEventListener("click", exportPdfSummary);
+
+// ---------- PPTX export (one branded slide per project, Verily Health brand guide) ----------
+const LOGO_PNG_BASE64 = "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";
+
+function pptHex(cssHex){ return (cssHex || "").replace("#", ""); }
+
+async function exportPptSummary(){
+  if (!state.projects.length){
+    alert("No initiatives to export yet.");
+    return;
+  }
+  // Different builds/versions of the library have exposed the constructor under
+  // slightly different global names — check the common ones before giving up.
+  const PptxCtor = (typeof PptxGenJS !== "undefined" && PptxGenJS) ||
+                    (typeof window.pptxgen !== "undefined" && window.pptxgen) ||
+                    (typeof window.pptxgenjs !== "undefined" && window.pptxgenjs);
+  if (!PptxCtor){
+    console.error("PPTX export: no PptxGenJS/pptxgen/pptxgenjs global found on window.");
+    alert("The PowerPoint export library didn't load (check the browser console for details). This is usually a CDN issue — let me know and I'll switch to a different source.");
+    return;
+  }
+
+  const DARK_GREEN = "074D43", VERDANT = "087A6A", LIGHT_GREEN = "3B996D",
+        TAN = "F2EFE8", BLACK = "2A2A2A", WHITE = "FFFFFF", INK_SOFT = "64707D";
+  const HEAD_FONT = "Poppins", BODY_FONT = "Inter";
+  const MAX_ROWS = 6;
+
+  const pres = new PptxCtor();
+  pres.layout = "LAYOUT_WIDE"; // 13.33" x 7.5"
+  pres.title = "Delivery Dashboard — Initiative Summary";
+
+  const projects = filteredProjects();
+  const generatedAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+
+  // ---- Cover slide ----
+  const cover = pres.addSlide();
+  cover.background = { color: WHITE };
+  cover.addImage({ data: "image/png;base64," + LOGO_PNG_BASE64, x: 0.5, y: 0.5, w: 1.3, h: 0.203 });
+  cover.addText("Delivery Dashboard", {
+    x: 0.5, y: 2.6, w: 12.3, h: 1.0, fontFace: HEAD_FONT, fontSize: 40, bold: true, color: DARK_GREEN, align: "left",
+  });
+  cover.addText("Initiative Summary", {
+    x: 0.5, y: 3.55, w: 12.3, h: 0.6, fontFace: HEAD_FONT, fontSize: 20, color: VERDANT, align: "left",
+  });
+  cover.addText(`Generated ${generatedAt}`, {
+    x: 0.5, y: 6.9, w: 12.3, h: 0.35, fontFace: BODY_FONT, fontSize: 11, color: INK_SOFT, align: "left",
+  });
+
+  // ---- One slide per project ----
+  projects.forEach((p) => {
+    const slide = pres.addSlide();
+    slide.background = { color: WHITE };
+
+    const meta = STATUS_META[p.status] || STATUS_META["On Track"];
+    const risks = p.risks || [];
+    const escalations = p.escalations || [];
+    const milestones = p.milestones || [];
+
+    slide.addImage({ data: "image/png;base64," + LOGO_PNG_BASE64, x: 0.4, y: 0.35, w: 1.0, h: 0.156 });
+
+    slide.addText(p.name || "Untitled initiative", {
+      x: 0.4, y: 0.65, w: 9.3, h: 0.6, fontFace: HEAD_FONT, fontSize: 26, bold: true, color: DARK_GREEN, align: "left",
+    });
+
+    // Health badge, Phase badge, and % complete — stacked top right
+    const phaseMetaPpt = PHASE_META[p.phase] || PHASE_META["Initiation"];
+    slide.addShape(pres.ShapeType.roundRect, {
+      x: 10.3, y: 0.38, w: 2.6, h: 0.32, rectRadius: 0.07,
+      fill: { color: pptHex(meta.soft) }, line: { type: "none" },
+    });
+    slide.addText(p.status || "", {
+      x: 10.3, y: 0.38, w: 2.6, h: 0.32, fontFace: BODY_FONT, fontSize: 11.5, bold: true,
+      color: pptHex(meta.color), align: "center", valign: "middle",
+    });
+    slide.addShape(pres.ShapeType.roundRect, {
+      x: 10.3, y: 0.73, w: 2.6, h: 0.32, rectRadius: 0.07,
+      fill: { color: pptHex(phaseMetaPpt.soft) }, line: { type: "none" },
+    });
+    slide.addText(p.phase || "", {
+      x: 10.3, y: 0.73, w: 2.6, h: 0.32, fontFace: BODY_FONT, fontSize: 10.5, bold: true,
+      color: pptHex(phaseMetaPpt.color), align: "center", valign: "middle",
+    });
+    slide.addText(`${Number(p.percentComplete) || 0}% complete`, {
+      x: 10.3, y: 1.07, w: 2.6, h: 0.2, fontFace: BODY_FONT, fontSize: 10, color: INK_SOFT, align: "center",
+    });
+
+    // Meta info bar
+    slide.addShape(pres.ShapeType.roundRect, {
+      x: 0.4, y: 1.25, w: 12.53, h: 0.85, rectRadius: 0.06,
+      fill: { color: TAN }, line: { type: "none" },
+    });
+    const metaCols = [
+      ["PRODUCT", p.product || "—"],
+      ["SDM", p.sdm || "—"],
+      ["CSM", p.csm || "—"],
+      ["SEGMENT", p.segment || "—"],
+      ["TCV", fmtCurrency(p.contractValue)],
+      ["TIMELINE", `${p.startDate || "—"}  →  ${p.endDate || "—"}`],
+    ];
+    const metaColWidth = 12.53 / metaCols.length;
+    metaCols.forEach(([label, value], i) => {
+      const x = 0.4 + i * metaColWidth;
+      slide.addText(label, {
+        x: x + 0.15, y: 1.33, w: metaColWidth - 0.25, h: 0.25,
+        fontFace: BODY_FONT, fontSize: 9, bold: true, color: INK_SOFT, charSpacing: 1,
+      });
+      slide.addText(value, {
+        x: x + 0.15, y: 1.58, w: metaColWidth - 0.25, h: 0.45,
+        fontFace: BODY_FONT, fontSize: 12.5, bold: true, color: BLACK, valign: "top",
+      });
+    });
+
+    // Notes (only shown if present, pushes the Risks/Escalations columns down)
+    const noteText = (p.notes || "").trim();
+    const NOTES_MAX_CHARS = 280;
+    let colY = 2.35;
+    if (noteText){
+      const noteDisplay = noteText.length > NOTES_MAX_CHARS ? noteText.slice(0, NOTES_MAX_CHARS - 1).trim() + "\u2026" : noteText;
+      slide.addText(
+        [
+          { text: "Notes   ", options: { bold: true, color: DARK_GREEN } },
+          { text: noteDisplay, options: { color: BLACK } },
+        ],
+        { x: 0.4, y: 2.18, w: 12.53, h: 0.58, fontFace: BODY_FONT, fontSize: 10.5, valign: "top", fit: "shrink", lineSpacingMultiple: 1.15 }
+      );
+      colY = 2.9;
+    }
+
+    // Key Milestones (compact strip, up to 3 shown — open ones prioritized)
+    if (milestones.length){
+      const msColor = { "Not Started": "64707D", "In Progress": "C98A2C", "Complete": "0F6B5C", "Delayed": "B3452C" };
+      const sortedMs = milestones.slice().sort((a, b) => (a.status === "Complete" ? 1 : 0) - (b.status === "Complete" ? 1 : 0));
+      const shownMs = sortedMs.slice(0, 3);
+      const msRuns = [{ text: "Key Milestones   ", options: { bold: true, color: DARK_GREEN, breakLine: true } }];
+      shownMs.forEach((m, i) => {
+        msRuns.push({
+          text: `${m.date || "—"}  —  ${m.milestone || ""}  (${m.status || ""})`,
+          options: { color: msColor[m.status] || BLACK, breakLine: i < shownMs.length - 1 },
+        });
+      });
+      slide.addText(msRuns, {
+        x: 0.4, y: colY, w: 12.53, h: 0.24 + 0.2 * shownMs.length,
+        fontFace: BODY_FONT, fontSize: 10, valign: "top", lineSpacingMultiple: 1.2,
+      });
+      colY += 0.42 + 0.2 * shownMs.length;
+    }
+
+    // ---- Risks (left column) ----
+    const colH = 7.0 - colY;
+    slide.addText("Risks", {
+      x: 0.4, y: colY, w: 6.0, h: 0.4, fontFace: HEAD_FONT, fontSize: 16, bold: true, color: DARK_GREEN,
+    });
+    if (!risks.length){
+      slide.addText("No open risks logged.", {
+        x: 0.4, y: colY + 0.45, w: 6.0, h: 0.4, fontFace: BODY_FONT, fontSize: 11, italic: true, color: INK_SOFT,
+      });
+    } else {
+      const shown = risks.slice(0, MAX_ROWS);
+      const rows = [
+        [
+          { text: "Risk", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+          { text: "Severity", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+          { text: "Status", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+          { text: "Owner", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+        ],
+        ...shown.map((r, i) => {
+          const sev = SEVERITY_META[r.severity] || SEVERITY_META.Medium;
+          const fill = i % 2 ? "FAFAFB" : WHITE;
+          return [
+            { text: r.description || "", options: { color: BLACK, fill: { color: fill } } },
+            { text: r.severity || "", options: { color: pptHex(sev.color), bold: true, fill: { color: fill } } },
+            { text: r.status || "", options: { color: BLACK, fill: { color: fill } } },
+            { text: r.owner || "", options: { color: BLACK, fill: { color: fill } } },
+          ];
+        }),
+      ];
+      slide.addTable(rows, {
+        x: 0.4, y: colY + 0.42, w: 6.0, colW: [3.0, 0.9, 1.1, 1.0],
+        fontFace: BODY_FONT, fontSize: 9, border: { type: "solid", color: "E1E4E9", pt: 0.5 },
+        autoPage: false, valign: "top",
+      });
+      if (risks.length > MAX_ROWS){
+        slide.addText(`+ ${risks.length - MAX_ROWS} more — see full detail in the PDF export`, {
+          x: 0.4, y: colY + colH - 0.3, w: 6.0, h: 0.3, fontFace: BODY_FONT, fontSize: 9, italic: true, color: INK_SOFT,
+        });
+      }
+    }
+
+    // ---- Escalations (right column) ----
+    slide.addText("Escalations", {
+      x: 6.8, y: colY, w: 6.13, h: 0.4, fontFace: HEAD_FONT, fontSize: 16, bold: true, color: DARK_GREEN,
+    });
+    if (!escalations.length){
+      slide.addText("No open escalations logged.", {
+        x: 6.8, y: colY + 0.45, w: 6.13, h: 0.4, fontFace: BODY_FONT, fontSize: 11, italic: true, color: INK_SOFT,
+      });
+    } else {
+      const shownE = escalations.slice(0, MAX_ROWS);
+      const rowsE = [
+        [
+          { text: "Issue", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+          { text: "Priority", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+          { text: "Status", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+          { text: "Owner", options: { bold: true, color: WHITE, fill: { color: DARK_GREEN } } },
+        ],
+        ...shownE.map((e, i) => {
+          const pr = PRIORITY_META[e.priority] || PRIORITY_META.Medium;
+          const st = ESCALATION_STATUS_META[e.status] || ESCALATION_STATUS_META.Open;
+          const fill = i % 2 ? "FAFAFB" : WHITE;
+          return [
+            { text: e.description || "", options: { color: BLACK, fill: { color: fill } } },
+            { text: e.priority || "", options: { color: pptHex(pr.color), bold: true, fill: { color: fill } } },
+            { text: e.status || "", options: { color: pptHex(st.color), bold: true, fill: { color: fill } } },
+            { text: e.owner || "", options: { color: BLACK, fill: { color: fill } } },
+          ];
+        }),
+      ];
+      slide.addTable(rowsE, {
+        x: 6.8, y: colY + 0.42, w: 6.13, colW: [3.03, 1.0, 1.1, 1.0],
+        fontFace: BODY_FONT, fontSize: 9, border: { type: "solid", color: "E1E4E9", pt: 0.5 },
+        autoPage: false, valign: "top",
+      });
+      if (escalations.length > MAX_ROWS){
+        slide.addText(`+ ${escalations.length - MAX_ROWS} more — see full detail in the PDF export`, {
+          x: 6.8, y: colY + colH - 0.3, w: 6.13, h: 0.3, fontFace: BODY_FONT, fontSize: 9, italic: true, color: INK_SOFT,
+        });
+      }
+    }
+
+    // ---- Footer ----
+    slide.addText("Verily Health  |  Delivery Dashboard", {
+      x: 0.4, y: 7.15, w: 8.0, h: 0.3, fontFace: BODY_FONT, fontSize: 9, color: LIGHT_GREEN,
+    });
+  });
+
+  await pres.writeFile({ fileName: `delivery-dashboard-summary-${new Date().toISOString().slice(0,10)}.pptx` });
+}
+document.getElementById("exportPptBtn").addEventListener("click", exportPptSummary);
+
+// ---------- mutations ----------
+function updateProject(id, field, value){
+  const p = state.projects.find(p => p.id === id);
+  if (!p) return;
+  if (field === "contractValue"){
+    const cleaned = typeof value === "string" ? value.replace(/[^0-9.]/g, "") : value;
+    p[field] = Number(cleaned) || 0;
+  } else if (field === "percentComplete"){
+    p[field] = Number(value) || 0;
+  } else if (DATE_FIELDS.has(field)){
+    p[field] = normalizeDateInput(value);
+  } else {
+    p[field] = value;
+  }
+  scheduleSave();
+}
+function deleteProject(id){
+  state.projects = state.projects.filter(p => p.id !== id);
+  scheduleSave(); render();
+}
+function addProject(){
+  const p = { id: uid(), name:"", product:"", sdm:"", csm:"", startDate:new Date().toISOString().slice(0,10),
+              endDate:new Date().toISOString().slice(0,10), status:"On Track", phase:"Initiation", segment:"", contractValue:0, percentComplete:0, notes:"", risks:[], escalations:[], milestones:[] };
+  state.projects.unshift(p);
+  scheduleSave(); render();
+}
+function addRisk(projectId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  p.risks.push({ id:uid(), description:"", severity:"Medium", status:"Open", owner:p.sdm||"", mitigation:"",
+                 identifiedDate:new Date().toISOString().slice(0,10) });
+  scheduleSave(); render();
+}
+function updateRisk(projectId, riskId, field, value){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  const r = p.risks.find(r => r.id === riskId);
+  if (!r) return;
+  r[field] = DATE_FIELDS.has(field) ? normalizeDateInput(value) : value;
+  scheduleSave();
+}
+function deleteRisk(projectId, riskId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  p.risks = p.risks.filter(r => r.id !== riskId);
+  scheduleSave(); render();
+}
+
+function addEscalation(projectId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  if (!p.escalations) p.escalations = [];
+  const today = new Date().toISOString().slice(0,10);
+  p.escalations.push({
+    id: uid(), description: "", priority: "Medium", status: "Open", impact: "Other",
+    dateAdded: today, owner: p.sdm || "", escalatedTo: "", dateEscalated: today,
+    expectedResolutionDate: "", notes: "",
+  });
+  scheduleSave(); render();
+}
+function updateEscalation(projectId, escId, field, value){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  const e = (p.escalations || []).find(e => e.id === escId);
+  if (!e) return;
+  e[field] = DATE_FIELDS.has(field) ? normalizeDateInput(value) : value;
+  scheduleSave();
+}
+function deleteEscalation(projectId, escId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  p.escalations = (p.escalations || []).filter(e => e.id !== escId);
+  scheduleSave(); render();
+}
+
+function addMilestone(projectId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  if (!p.milestones) p.milestones = [];
+  p.milestones.push({
+    id: uid(), date: new Date().toISOString().slice(0,10), milestone: "", status: "Not Started",
+  });
+  scheduleSave(); render();
+}
+function updateMilestone(projectId, milestoneId, field, value){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  const m = (p.milestones || []).find(m => m.id === milestoneId);
+  if (!m) return;
+  m[field] = field === "date" ? normalizeDateInput(value) : value;
+  scheduleSave();
+}
+function deleteMilestone(projectId, milestoneId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  p.milestones = (p.milestones || []).filter(m => m.id !== milestoneId);
+  scheduleSave(); render();
+}
+
+// ---------- render ----------
+function esc(s){ return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function renderStats(){
+  const total = state.projects.length;
+  const value = state.projects.reduce((s,p) => s + (Number(p.contractValue)||0), 0);
+  const openRisks = state.projects.reduce((s,p) => s + p.risks.filter(r => r.status !== "Closed").length, 0);
+  const openEscalations = state.projects.reduce((s,p) => s + (p.escalations || []).filter(e => e.status !== "Resolved").length, 0);
+  const cards = [
+    ["Active Initiatives", total],
+    ["Total Contract Value (TCV)", fmtCurrency(value)],
+    ["Open Risks", openRisks],
+    ["Open Escalations", openEscalations],
+  ];
+  document.getElementById("stats").innerHTML = cards.map(([label,val]) =>
+    `<div class="stat"><div class="label">${label}</div><div class="value">${val}</div></div>`
+  ).join("");
+}
+
+function statusFilterOptions(){
+  const sel = document.getElementById("statusFilter");
+  const current = state.statusFilter;
+  sel.innerHTML = `<option value="All">All health</option>` +
+    STATUS_ORDER.map(s => `<option value="${s}" ${s===current?"selected":""}>${s}</option>`).join("");
+}
+
+function compareProjects(a, b, sortBy){
+  const str = (v) => (v || "").toString().toLowerCase();
+  switch (sortBy){
+    case "name": return str(a.name).localeCompare(str(b.name));
+    case "product": {
+      const cmp = str(a.product).localeCompare(str(b.product));
+      return cmp !== 0 ? cmp : str(a.name).localeCompare(str(b.name));
+    }
+    case "sdm": return str(a.sdm).localeCompare(str(b.sdm));
+    case "csm": return str(a.csm).localeCompare(str(b.csm));
+    case "tcv": return (Number(b.contractValue) || 0) - (Number(a.contractValue) || 0); // highest first
+    case "startDate": return str(a.startDate).localeCompare(str(b.startDate)); // earliest first
+    case "endDate": return str(a.endDate).localeCompare(str(b.endDate)); // earliest first
+    default: return 0;
+  }
+}
+
+function filteredProjects(){
+  const q = state.search.toLowerCase();
+  const list = state.projects
+    .filter(p => state.statusFilter === "All" || p.status === state.statusFilter)
+    .filter(p => !q || p.name.toLowerCase().includes(q) || p.sdm.toLowerCase().includes(q) || (p.csm||"").toLowerCase().includes(q) || (p.product||"").toLowerCase().includes(q));
+  if (state.sortBy && state.sortBy !== "none"){
+    list.sort((a, b) => compareProjects(a, b, state.sortBy));
+  }
+  return list;
+}
+
+function riskRowHtml(p, r){
+  const sev = SEVERITY_META[r.severity] || SEVERITY_META.Medium;
+  return `
+  <div class="risk-row" data-risk-id="${r.id}" data-project-id="${p.id}">
+    <textarea rows="1" class="field wrap-textarea" data-role="risk-field" data-field="description" placeholder="Risk description">${esc(r.description)}</textarea>
+    <select class="sev-pill" data-role="risk-field" data-field="severity" style="color:${sev.color};background:${sev.soft};">
+      ${Object.keys(SEVERITY_META).map(s => `<option value="${s}" ${s===r.severity?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <textarea rows="1" class="field wrap-textarea" data-role="risk-field" data-field="mitigation" placeholder="Mitigation plan">${esc(r.mitigation)}</textarea>
+    <input class="field" data-role="risk-field" data-field="owner" value="${esc(r.owner)}" placeholder="Owner" />
+    <select class="rstatus-select" data-role="risk-field" data-field="status" style="border:1px solid var(--border); background:var(--surface2); color:var(--ink); border-radius:6px;">
+      ${RISK_STATUS.map(s => `<option value="${s}" ${s===r.status?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <button class="icon-btn" data-action="delete-risk" title="Delete risk">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+    </button>
+  </div>`;
+}
+
+function milestoneRowHtml(p, m){
+  const st = MILESTONE_STATUS_META[m.status] || MILESTONE_STATUS_META["Not Started"];
+  return `
+  <div class="milestone-row" data-milestone-id="${m.id}" data-project-id="${p.id}">
+    <div class="date-wrap"><input type="date" class="field field-mono" data-role="milestone-field" data-field="date" value="${m.date}" style="font-size:12.5px;" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+    <textarea rows="1" class="field wrap-textarea" data-role="milestone-field" data-field="milestone" placeholder="Milestone">${esc(m.milestone)}</textarea>
+    <select class="rstatus-select" data-role="milestone-field" data-field="status" style="color:${st.color};background:${st.soft};">
+      ${MILESTONE_STATUS.map(s => `<option value="${s}" ${s===m.status?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <button class="icon-btn" data-action="delete-milestone" title="Delete milestone">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+    </button>
+  </div>`;
+}
+
+function escalationCardHtml(p, e){
+  const pr = PRIORITY_META[e.priority] || PRIORITY_META.Medium;
+  const st = ESCALATION_STATUS_META[e.status] || ESCALATION_STATUS_META.Open;
+  const impact = e.impact || "Other";
+  return `
+  <div class="esc-card" data-escalation-id="${e.id}" data-project-id="${p.id}">
+    <div class="esc-top">
+      <textarea rows="1" class="field wrap-textarea" data-role="escalation-field" data-field="description" placeholder="Issue description">${esc(e.description)}</textarea>
+      <select class="sev-pill" data-role="escalation-field" data-field="priority" style="color:${pr.color};background:${pr.soft};">
+        ${Object.keys(PRIORITY_META).map(s => `<option value="${s}" ${s===e.priority?"selected":""}>${s}</option>`).join("")}
+      </select>
+      <select class="rstatus-select" data-role="escalation-field" data-field="status" style="color:${st.color};background:${st.soft};">
+        ${ESCALATION_STATUS.map(s => `<option value="${s}" ${s===e.status?"selected":""}>${s}</option>`).join("")}
+      </select>
+      <button class="icon-btn" data-action="delete-escalation" title="Delete escalation">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+      </button>
+    </div>
+    <div class="esc-grid">
+      <div class="esc-field"><label>Impact</label>
+        <select class="field" data-role="escalation-field" data-field="impact" style="border:1px solid var(--border); border-radius:6px; font-size:12.5px;">
+          ${IMPACT_OPTIONS.map(opt => `<option value="${opt}" ${opt===impact?"selected":""}>${opt}</option>`).join("")}
+        </select>
+      </div>
+      <div class="esc-field"><label>Date added</label><div class="date-wrap"><input type="date" class="field field-mono" data-role="escalation-field" data-field="dateAdded" value="${e.dateAdded}" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div></div>
+      <div class="esc-field"><label>Current owner</label><input class="field" data-role="escalation-field" data-field="owner" value="${esc(e.owner)}" placeholder="Owner" /></div>
+      <div class="esc-field"><label>Escalated to</label><input class="field" data-role="escalation-field" data-field="escalatedTo" value="${esc(e.escalatedTo)}" placeholder="Escalated to" /></div>
+      <div class="esc-field"><label>Date escalated</label><div class="date-wrap"><input type="date" class="field field-mono" data-role="escalation-field" data-field="dateEscalated" value="${e.dateEscalated}" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div></div>
+      <div class="esc-field"><label>Expected resolution</label><div class="date-wrap"><input type="date" class="field field-mono" data-role="escalation-field" data-field="expectedResolutionDate" value="${e.expectedResolutionDate}" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div></div>
+    </div>
+    <div class="esc-notes">
+      <textarea rows="1" class="field wrap-textarea" data-role="escalation-field" data-field="notes" placeholder="Resolution notes / next steps">${esc(e.notes)}</textarea>
+    </div>
+  </div>`;
+}
+
+function projectHtml(p){
+  const meta = STATUS_META[p.status] || STATUS_META["On Track"];
+  const phaseMeta = PHASE_META[p.phase] || PHASE_META["Initiation"];
+  const segmentMeta = SEGMENT_META[p.segment] || { color: "#64707D", soft: "#E9EBEE" };
+  const activeSection = state.expandedSection[p.id] || null;
+  const expanded = !!activeSection;
+  const openRisks = p.risks.filter(r => r.status !== "Closed");
+  const highOpen = openRisks.some(r => r.severity === "High");
+  const pillBg = openRisks.length ? (highOpen ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+  const pillColor = openRisks.length ? (highOpen ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+
+  const escalations = p.escalations || [];
+  const openEscalations = escalations.filter(e => e.status !== "Resolved");
+  const highOpenEsc = openEscalations.some(e => e.priority === "High");
+  const escPillBg = openEscalations.length ? (highOpenEsc ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+  const escPillColor = openEscalations.length ? (highOpenEsc ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+  const hasNotes = !!(p.notes && p.notes.trim());
+
+  const milestones = p.milestones || [];
+  const openMilestones = milestones.filter(m => m.status !== "Complete");
+  const hasDelayedMilestone = openMilestones.some(m => m.status === "Delayed");
+  const milestonePillBg = openMilestones.length ? (hasDelayedMilestone ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+  const milestonePillColor = openMilestones.length ? (hasDelayedMilestone ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+
+  return `
+  <div class="proj" data-project-id="${p.id}">
+    <div class="proj-card">
+      <div class="spine" style="background:${meta.color};"></div>
+      <div class="proj-body">
+        <div class="proj-top-row">
+          <div class="proj-field-wrap spacer">
+            <span class="proj-field-label">&nbsp;</span>
+            <button class="icon-btn" data-action="toggle-section" title="${expanded ? "Collapse" : "Expand"}">
+              <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2">${expanded ? '<path d="M6 9l6 6 6-6"/>' : '<path d="M9 6l6 6-6 6"/>'}</svg>
+            </button>
+          </div>
+          <div class="col-name proj-field-wrap">
+            <label class="proj-field-label">Initiative Name</label>
+            <textarea rows="1" class="field name-textarea" data-role="proj-field" data-field="name" placeholder="Initiative name" style="font-weight:600;font-size:15.5px;">${esc(p.name)}</textarea>
+          </div>
+          <div class="col-product proj-field-wrap">
+            <label class="proj-field-label">Product</label>
+            <input class="field" data-role="proj-field" data-field="product" value="${esc(p.product)}" placeholder="Product" style="font-size:13.5px;" />
+          </div>
+          <div class="col-cv proj-field-wrap">
+            <label class="proj-field-label">TCV</label>
+            <div style="display:flex; align-items:center;">
+              <span style="color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:13px;">$</span>
+              <input type="text" inputmode="decimal" class="field field-mono" data-role="proj-field" data-field="contractValue" value="${(Number(p.contractValue)||0).toLocaleString('en-US')}" style="font-size:14px;font-weight:600; width:120px; flex:0 0 auto;" />
+            </div>
+          </div>
+          <div class="col-sdm proj-field-wrap">
+            <label class="proj-field-label">SDM</label>
+            <input class="field" data-role="proj-field" data-field="sdm" value="${esc(p.sdm)}" placeholder="SDM" style="font-size:13.5px;" />
+          </div>
+          <div class="col-sdm proj-field-wrap">
+            <label class="proj-field-label">CSM</label>
+            <input class="field" data-role="proj-field" data-field="csm" value="${esc(p.csm)}" placeholder="CSM" style="font-size:13.5px;" />
+          </div>
+          <div class="col-dates">
+            <div class="proj-field-wrap">
+              <label class="proj-field-label">Start Date</label>
+              <div class="date-wrap"><input type="date" class="field field-mono" data-role="proj-field" data-field="startDate" value="${p.startDate}" style="font-size:13px; width:112px; flex:0 0 auto;" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            </div>
+            <span style="color:var(--ink-soft);font-size:12px; padding-bottom:8px;">→</span>
+            <div class="proj-field-wrap">
+              <label class="proj-field-label">End Date</label>
+              <div class="date-wrap"><input type="date" class="field field-mono" data-role="proj-field" data-field="endDate" value="${p.endDate}" style="font-size:13px; width:112px; flex:0 0 auto;" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="proj-field-wrap">
+          <label class="proj-field-label">Health</label>
+          <select class="badge" data-role="proj-field" data-field="status" style="color:${meta.color};background:${meta.soft};">
+            ${STATUS_ORDER.map(s => `<option value="${s}" ${s===p.status?"selected":""}>${s}</option>`).join("")}
+          </select>
+        </div>
+        <div class="proj-field-wrap">
+          <label class="proj-field-label">Delivery Phase</label>
+          <select class="badge" data-role="proj-field" data-field="phase" style="color:${phaseMeta.color};background:${phaseMeta.soft};">
+            ${PHASE_OPTIONS.map(ph => `<option value="${ph}" ${ph===p.phase?"selected":""}>${ph}</option>`).join("")}
+          </select>
+        </div>
+        <div class="proj-field-wrap">
+          <label class="proj-field-label">Segment</label>
+          <select class="badge" data-role="proj-field" data-field="segment" style="color:${segmentMeta.color};background:${segmentMeta.soft};">
+            <option value="" ${!p.segment ? "selected" : ""} disabled hidden>Select…</option>
+            ${SEGMENT_OPTIONS.map(s => `<option value="${s}" ${s===p.segment?"selected":""}>${s}</option>`).join("")}
+          </select>
+        </div>
+        <div class="proj-field-wrap">
+          <label class="proj-field-label">% Complete</label>
+          <select class="field" data-role="proj-field" data-field="percentComplete" style="border:1px solid var(--border); border-radius:6px; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; cursor:pointer; padding:4px 6px;">
+            ${PERCENT_OPTIONS.map(n => `<option value="${n}" ${n===Number(p.percentComplete||0)?"selected":""}>${n}%</option>`).join("")}
+          </select>
+        </div>
+        <div class="proj-field-wrap spacer">
+          <span class="proj-field-label">&nbsp;</span>
+          <button class="milestone-pill" data-action="toggle-section" data-section="milestones" style="background:${milestonePillBg};color:${milestonePillColor}; ${activeSection==='milestones' ? "box-shadow:0 0 0 2px currentColor;" : ""}">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22V4a1 1 0 011-1h14a1 1 0 011 1v10l-4-2-4 2-4-2-4 2z"/></svg>
+            Key Milestones${openMilestones.length ? ` (${openMilestones.length})` : ""}
+          </button>
+        </div>
+        <div class="proj-field-wrap spacer">
+          <span class="proj-field-label">&nbsp;</span>
+          <button class="risk-pill" data-action="toggle-section" data-section="risks" style="background:${pillBg};color:${pillColor}; ${activeSection==='risks' ? "box-shadow:0 0 0 2px currentColor;" : ""}">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86l-8.49 14.7A1 1 0 002.62 20h18.76a1 1 0 00.86-1.44l-8.49-14.7a1 1 0 00-1.72 0z"/></svg>
+            ${openRisks.length} risk${openRisks.length === 1 ? "" : "s"}
+          </button>
+        </div>
+        <div class="proj-field-wrap spacer">
+          <span class="proj-field-label">&nbsp;</span>
+          <button class="esc-pill" data-action="toggle-section" data-section="escalations" style="background:${escPillBg};color:${escPillColor}; ${activeSection==='escalations' ? "box-shadow:0 0 0 2px currentColor;" : ""}">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            ${openEscalations.length} escalation${openEscalations.length === 1 ? "" : "s"}
+          </button>
+        </div>
+        <div class="proj-field-wrap spacer">
+          <span class="proj-field-label">&nbsp;</span>
+          <button class="notes-pill" data-action="toggle-section" data-section="notes" style="background:${hasNotes ? "var(--accent-soft)" : "var(--surface2)"};color:${hasNotes ? "var(--accent)" : "var(--ink-soft)"}; ${activeSection==='notes' ? "box-shadow:0 0 0 2px currentColor;" : ""}">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+            Notes
+          </button>
+        </div>
+        <div class="proj-field-wrap spacer" style="margin-left:auto;">
+          <span class="proj-field-label">&nbsp;</span>
+          ${pendingDeleteProjectId === p.id ? `
+          <button class="icon-btn" data-action="delete-project" title="Click again to confirm delete"
+                  style="background:#F6E4DE;color:#B3452C;border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+            Confirm?
+          </button>` : `
+          <button class="icon-btn" data-action="delete-project" title="Delete initiative">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+          </button>`}
+        </div>
+      </div>
+    </div>
+    ${expanded ? `
+    <div class="risk-panel">
+      ${activeSection === "notes" ? `
+      <div class="panel-section-title">Notes</div>
+      <textarea rows="3" class="field wrap-textarea" data-role="proj-field" data-field="notes" placeholder="Initiative notes — context, updates, anything worth flagging" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-height:72px; line-height:1.45;">${esc(p.notes)}</textarea>` : ""}
+
+      ${activeSection === "milestones" ? `
+      <div class="panel-section-title">Key Milestones</div>
+      <div class="milestone-head"><span>Date</span><span>Milestone</span><span>Status</span><span></span></div>
+      ${milestones.map(m => milestoneRowHtml(p,m)).join("")}
+      <button class="add-milestone" data-action="add-milestone">+ Add milestone</button>` : ""}
+
+      ${activeSection === "risks" ? `
+      <div class="panel-section-title">Risks</div>
+      <div class="risk-head"><span>Risk</span><span>Severity</span><span>Mitigation</span><span>Owner</span><span>Status</span><span></span></div>
+      ${p.risks.map(r => riskRowHtml(p,r)).join("")}
+      <button class="add-risk" data-action="add-risk">+ Log a risk</button>` : ""}
+
+      ${activeSection === "escalations" ? `
+      <div class="panel-section-title">Escalations</div>
+      ${escalations.map(e => escalationCardHtml(p,e)).join("")}
+      <button class="add-escalation" data-action="add-escalation">+ Log an escalation</button>` : ""}
+    </div>` : ""}
+  </div>`;
+}
+
+function render(){
+  renderStats();
+  statusFilterOptions();
+
+  document.getElementById("projectsTab").style.display = state.activeTab === "projects" ? "" : "none";
+  document.getElementById("summaryTab").style.display = state.activeTab === "summary" ? "" : "none";
+  document.getElementById("risksTab").style.display = state.activeTab === "risks" ? "" : "none";
+  document.getElementById("escalationsTab").style.display = state.activeTab === "escalations" ? "" : "none";
+  document.getElementById("phaseTab").style.display = state.activeTab === "phase" ? "" : "none";
+  document.getElementById("healthTab").style.display = state.activeTab === "health" ? "" : "none";
+  document.getElementById("tabProjectsBtn").classList.toggle("active", state.activeTab === "projects");
+  document.getElementById("tabSummaryBtn").classList.toggle("active", state.activeTab === "summary");
+  document.getElementById("tabRisksBtn").classList.toggle("active", state.activeTab === "risks");
+  document.getElementById("tabEscalationsBtn").classList.toggle("active", state.activeTab === "escalations");
+  document.getElementById("tabPhaseBtn").classList.toggle("active", state.activeTab === "phase");
+  document.getElementById("tabHealthBtn").classList.toggle("active", state.activeTab === "health");
+
+  if (state.activeTab === "projects"){
+    renderProjectsTab();
+  } else if (state.activeTab === "summary"){
+    renderSummaryTab();
+  } else if (state.activeTab === "risks"){
+    renderRisksTab();
+  } else if (state.activeTab === "escalations"){
+    renderEscalationsTab();
+  } else if (state.activeTab === "phase"){
+    renderPhaseTab();
+  } else {
+    renderHealthTab();
+  }
+}
+
+function renderProjectsTab(){
+  const root = document.getElementById("projectsRoot");
+  if (!state.loaded || state.projects.length === 0){
+    root.innerHTML = `<div class="empty"><b>No data loaded yet.</b><br/>Click "Add initiative" to start.</div>`;
+    return;
+  }
+  const list = filteredProjects();
+  if (list.length === 0){
+    root.innerHTML = `<div class="empty">No initiatives match this view.</div>`;
+    return;
+  }
+  root.innerHTML = list.map(projectHtml).join("");
+  root.querySelectorAll(".name-textarea, .wrap-textarea").forEach(autosizeTextarea);
+}
+
+// ---------- Initiatives Summary tab (Strategic / High Touch, or anything with open risks/escalations) ----------
+function buildSummaryCards(){
+  const cards = [];
+  state.projects.forEach(p => {
+    const meta = STATUS_META[p.status] || STATUS_META["On Track"];
+    const segMeta = SEGMENT_META[p.segment] || null;
+    const openRisks = (p.risks || []).filter(r => r.status !== "Closed");
+    const openEsc = (p.escalations || []).filter(e => e.status !== "Resolved");
+    const openMs = (p.milestones || []).filter(m => m.status !== "Complete");
+    const isKeySegment = p.segment === "Strategic" || p.segment === "High Touch";
+
+    if (!isKeySegment && !openRisks.length && !openEsc.length) return; // doesn't qualify
+
+    // ---- Line 1: the core facts ----
+    const factParts = [p.product, p.phase, Number(p.percentComplete) ? `${Number(p.percentComplete)}% complete` : null,
+      fmtCurrency(p.contractValue)].filter(Boolean);
+    let facts = factParts.join(" · ");
+    if (p.sdm || p.csm){
+      const people = [p.sdm && `SDM: ${p.sdm}`, p.csm && `CSM: ${p.csm}`].filter(Boolean).join(" · ");
+      facts += (facts ? "  |  " : "") + people;
+    }
+    if (p.startDate || p.endDate){
+      facts += `  |  ${p.startDate || "—"} → ${p.endDate || "—"}`;
+    }
+
+    // ---- Line 2: risks ----
+    let riskLine = "";
+    if (openRisks.length){
+      riskLine = `<b>${openRisks.length} open risk${openRisks.length === 1 ? "" : "s"}:</b> ` +
+        openRisks.map(r => `${r.severity} — ${esc(r.description || "(no description)")}`).join("; ");
+    } else {
+      riskLine = `No open risks.`;
+    }
+
+    // ---- Line 3: escalations ----
+    let escLine = "";
+    if (openEsc.length){
+      escLine = `<b>${openEsc.length} open escalation${openEsc.length === 1 ? "" : "s"}:</b> ` +
+        openEsc.map(e => `${e.priority} — ${esc(e.description || e.notes || "(no description)")}`).join("; ");
+    } else {
+      escLine = `No open escalations.`;
+    }
+
+    // ---- Line 4: milestones + notes, only shown if there's something to say ----
+    const extraParts = [];
+    if (openMs.length){
+      extraParts.push(`${openMs.length} upcoming milestone${openMs.length === 1 ? "" : "s"}`);
+    }
+    if (p.notes && p.notes.trim()){
+      const snippet = p.notes.trim().slice(0, 140);
+      extraParts.push(`Notes: ${esc(snippet)}${p.notes.trim().length > 140 ? "…" : ""}`);
+    }
+
+    cards.push({
+      meta, segMeta,
+      name: p.name || "Untitled initiative",
+      status: p.status,
+      segment: p.segment,
+      facts, riskLine, escLine,
+      extraLine: extraParts.join("  |  "),
+      rank: (STATUS_ORDER.indexOf(p.status) === -1 ? 99 : STATUS_ORDER.indexOf(p.status)),
+    });
+  });
+  // Least-healthy initiatives surface first, matching the color scheme's urgency
+  cards.sort((a, b) => a.rank - b.rank);
+  return cards;
+}
+
+function summaryCardHtml(c){
+  return `
+  <div class="sumcard" style="border-left-color:${c.meta.color}; background:${c.meta.soft};">
+    <div class="sumcard-top">
+      <h3 style="margin:0;">${esc(c.name)}</h3>
+      <span class="sumcard-badge" style="background:${c.meta.color};">${esc(c.status)}</span>
+      ${c.segMeta ? `<span class="sumcard-badge" style="background:${c.segMeta.color};">${esc(c.segment)}</span>` : ""}
+    </div>
+    ${c.facts ? `<p class="sumcard-facts">${esc(c.facts)}</p>` : ""}
+    <p>${c.riskLine}</p>
+    <p>${c.escLine}</p>
+    ${c.extraLine ? `<p class="sumcard-extra">${c.extraLine}</p>` : ""}
+  </div>`;
+}
+
+function renderSummaryTab(){
+  const root = document.getElementById("summaryRoot");
+  if (!state.loaded || state.projects.length === 0){
+    root.innerHTML = `<div class="empty"><b>No data loaded yet.</b><br/>Click "Add initiative" to start.</div>`;
+    return;
+  }
+  const cards = buildSummaryCards();
+  if (cards.length === 0){
+    root.innerHTML = `<div class="empty">Nothing currently matches — no Strategic/High Touch initiatives and no open risks or escalations.</div>`;
+    return;
+  }
+  root.innerHTML = `<div class="sumcard-grid">${cards.map(summaryCardHtml).join("")}</div>`;
+}
+function renderPhaseTab(){
+  const root = document.getElementById("phaseRoot");
+  if (!state.loaded || state.projects.length === 0){
+    root.innerHTML = `<div class="empty"><b>No data loaded yet.</b><br/>Click "Add initiative" to start.</div>`;
+    return;
+  }
+
+  const q = state.phaseSearch.toLowerCase();
+  const list = state.projects.filter(p => !q ||
+    p.name.toLowerCase().includes(q) || p.sdm.toLowerCase().includes(q) ||
+    (p.csm||"").toLowerCase().includes(q) || (p.product||"").toLowerCase().includes(q));
+
+  if (list.length === 0){
+    root.innerHTML = `<div class="empty">No initiatives match this view.</div>`;
+    return;
+  }
+
+  root.innerHTML = PHASE_OPTIONS.map(phase => {
+    const group = list.filter(p => (p.phase || "Initiation") === phase);
+    const pm = PHASE_META[phase];
+    const groupTcv = group.reduce((s,p) => s + (Number(p.contractValue)||0), 0);
+    const collapsed = !!state.collapsedPhases[phase];
+
+    const groupOpenRisks = group.reduce((s,p) => s + (p.risks||[]).filter(r => r.status !== "Closed").length, 0);
+    const groupHighRisk = group.some(p => (p.risks||[]).some(r => r.status !== "Closed" && r.severity === "High"));
+    const riskPillBg = groupOpenRisks ? (groupHighRisk ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+    const riskPillColor = groupOpenRisks ? (groupHighRisk ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+
+    const groupOpenEsc = group.reduce((s,p) => s + (p.escalations||[]).filter(e => e.status !== "Resolved").length, 0);
+    const groupHighEsc = group.some(p => (p.escalations||[]).some(e => e.status !== "Resolved" && e.priority === "High"));
+    const escPillBg = groupOpenEsc ? (groupHighEsc ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+    const escPillColor = groupOpenEsc ? (groupHighEsc ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+
+    return `
+    <div class="phase-group">
+      <div class="phase-group-header" data-action="toggle-phase" data-phase="${phase}" style="background:${pm.soft}; cursor:pointer;">
+        <button class="icon-btn" style="color:${pm.color};" title="${collapsed ? "Expand" : "Collapse"}">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${collapsed ? '<path d="M9 6l6 6-6 6"/>' : '<path d="M6 9l6 6 6-6"/>'}</svg>
+        </button>
+        <span class="dot" style="background:${pm.color};"></span>
+        <span class="title" style="color:${pm.color};">${phase}</span>
+        <span class="count" style="color:${pm.color};">${group.length} initiative${group.length===1?"":"s"}</span>
+        ${group.length ? `
+        <span class="risk-pill" style="background:${riskPillBg};color:${riskPillColor};">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86l-8.49 14.7A1 1 0 002.62 20h18.76a1 1 0 00.86-1.44l-8.49-14.7a1 1 0 00-1.72 0z"/></svg>
+          ${groupOpenRisks} risk${groupOpenRisks===1?"":"s"}
+        </span>
+        <span class="esc-pill" style="background:${escPillBg};color:${escPillColor};">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          ${groupOpenEsc} escalation${groupOpenEsc===1?"":"s"}
+        </span>` : ""}
+        ${group.length ? `<span class="tcv" style="color:${pm.color};">${fmtCurrency(groupTcv)}</span>` : ""}
+      </div>
+      ${collapsed ? "" : (group.length ? group.map(projectHtml).join("") : `<div class="empty" style="padding:20px;">No initiatives in this phase.</div>`)}
+    </div>`;
+  }).join("");
+
+  root.querySelectorAll(".name-textarea, .wrap-textarea").forEach(autosizeTextarea);
+}
+
+// ---------- By Health tab (projects grouped/bucketed by Health status) ----------
+function renderHealthTab(){
+  const root = document.getElementById("healthRoot");
+  if (!state.loaded || state.projects.length === 0){
+    root.innerHTML = `<div class="empty"><b>No data loaded yet.</b><br/>Click "Add initiative" to start.</div>`;
+    return;
+  }
+
+  const q = state.healthSearch.toLowerCase();
+  const list = state.projects.filter(p => !q ||
+    p.name.toLowerCase().includes(q) || p.sdm.toLowerCase().includes(q) ||
+    (p.csm||"").toLowerCase().includes(q) || (p.product||"").toLowerCase().includes(q));
+
+  if (list.length === 0){
+    root.innerHTML = `<div class="empty">No initiatives match this view.</div>`;
+    return;
+  }
+
+  root.innerHTML = STATUS_ORDER.map(status => {
+    const group = list.filter(p => (p.status || "On Track") === status);
+    const pm = STATUS_META[status];
+    const groupTcv = group.reduce((s,p) => s + (Number(p.contractValue)||0), 0);
+    const collapsed = !!state.collapsedHealthGroups[status];
+
+    const groupOpenRisks = group.reduce((s,p) => s + (p.risks||[]).filter(r => r.status !== "Closed").length, 0);
+    const groupHighRisk = group.some(p => (p.risks||[]).some(r => r.status !== "Closed" && r.severity === "High"));
+    const riskPillBg = groupOpenRisks ? (groupHighRisk ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+    const riskPillColor = groupOpenRisks ? (groupHighRisk ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+
+    const groupOpenEsc = group.reduce((s,p) => s + (p.escalations||[]).filter(e => e.status !== "Resolved").length, 0);
+    const groupHighEsc = group.some(p => (p.escalations||[]).some(e => e.status !== "Resolved" && e.priority === "High"));
+    const escPillBg = groupOpenEsc ? (groupHighEsc ? "#F6E4DE" : "#F7ECD8") : "var(--surface2)";
+    const escPillColor = groupOpenEsc ? (groupHighEsc ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
+
+    return `
+    <div class="phase-group">
+      <div class="phase-group-header" data-action="toggle-health" data-health="${status}" style="background:${pm.soft}; cursor:pointer;">
+        <button class="icon-btn" style="color:${pm.color};" title="${collapsed ? "Expand" : "Collapse"}">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${collapsed ? '<path d="M9 6l6 6-6 6"/>' : '<path d="M6 9l6 6 6-6"/>'}</svg>
+        </button>
+        <span class="dot" style="background:${pm.color};"></span>
+        <span class="title" style="color:${pm.color};">${status}</span>
+        <span class="count" style="color:${pm.color};">${group.length} initiative${group.length===1?"":"s"}</span>
+        ${group.length ? `
+        <span class="risk-pill" style="background:${riskPillBg};color:${riskPillColor};">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86l-8.49 14.7A1 1 0 002.62 20h18.76a1 1 0 00.86-1.44l-8.49-14.7a1 1 0 00-1.72 0z"/></svg>
+          ${groupOpenRisks} risk${groupOpenRisks===1?"":"s"}
+        </span>
+        <span class="esc-pill" style="background:${escPillBg};color:${escPillColor};">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          ${groupOpenEsc} escalation${groupOpenEsc===1?"":"s"}
+        </span>` : ""}
+        ${group.length ? `<span class="tcv" style="color:${pm.color};">${fmtCurrency(groupTcv)}</span>` : ""}
+      </div>
+      ${collapsed ? "" : (group.length ? group.map(projectHtml).join("") : `<div class="empty" style="padding:20px;">No initiatives with this health status.</div>`)}
+    </div>`;
+  }).join("");
+
+  root.querySelectorAll(".name-textarea, .wrap-textarea").forEach(autosizeTextarea);
+}
+
+// ---------- All Risks tab (ranked by severity) ----------
+const SEVERITY_RANK = { High: 3, Medium: 2, Low: 1 };
+const RISK_STATUS_RANK = { Open: 0, Mitigated: 1, Closed: 2 };
+
+function allRisksFlat(){
+  const out = [];
+  state.projects.forEach(p => p.risks.forEach(r => out.push({ project: p, risk: r })));
+  return out;
+}
+
+function filteredSortedRisks(){
+  const q = state.riskSearch.toLowerCase();
+  return allRisksFlat()
+    .filter(({ risk }) => state.riskSeverityFilter === "All" || risk.severity === state.riskSeverityFilter)
+    .filter(({ risk }) => state.riskStatusFilter === "All" || risk.status === state.riskStatusFilter)
+    .filter(({ project, risk }) => !q ||
+      risk.description.toLowerCase().includes(q) ||
+      project.name.toLowerCase().includes(q) ||
+      (risk.owner || "").toLowerCase().includes(q))
+    .sort((a, b) => {
+      const sevDiff = (SEVERITY_RANK[b.risk.severity] || 0) - (SEVERITY_RANK[a.risk.severity] || 0);
+      if (sevDiff !== 0) return sevDiff;
+      return (RISK_STATUS_RANK[a.risk.status] ?? 1) - (RISK_STATUS_RANK[b.risk.status] ?? 1);
+    });
+}
+
+function groupRisksByProject(){
+  const flat = filteredSortedRisks();
+  const byProject = new Map();
+  flat.forEach(({ project, risk }) => {
+    if (!byProject.has(project.id)) byProject.set(project.id, { project, risks: [] });
+    byProject.get(project.id).risks.push(risk);
+  });
+  const groups = Array.from(byProject.values());
+  groups.sort((a, b) => {
+    const aBest = Math.max(...a.risks.map(r => SEVERITY_RANK[r.severity] || 0));
+    const bBest = Math.max(...b.risks.map(r => SEVERITY_RANK[r.severity] || 0));
+    if (bBest !== aBest) return bBest - aBest;
+    return a.project.name.localeCompare(b.project.name);
+  });
+  return groups;
+}
+
+function riskWideRowHtml(project, risk){
+  const sev = SEVERITY_META[risk.severity] || SEVERITY_META.Medium;
+  return `
+  <div class="risk-wide-row" data-risk-id="${risk.id}" data-project-id="${project.id}">
+    <select class="sev-pill" data-role="risk-field" data-field="severity" style="color:${sev.color};background:${sev.soft};">
+      ${Object.keys(SEVERITY_META).map(s => `<option value="${s}" ${s===risk.severity?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <textarea rows="1" class="field wrap-textarea" data-role="risk-field" data-field="description" placeholder="Risk description">${esc(risk.description)}</textarea>
+    <textarea rows="1" class="field wrap-textarea" data-role="risk-field" data-field="mitigation" placeholder="Mitigation plan">${esc(risk.mitigation)}</textarea>
+    <input class="field" data-role="risk-field" data-field="owner" value="${esc(risk.owner)}" placeholder="Owner" />
+    <select class="rstatus-select" data-role="risk-field" data-field="status" style="border:1px solid var(--border); background:var(--surface2); color:var(--ink); border-radius:6px;">
+      ${RISK_STATUS.map(s => `<option value="${s}" ${s===risk.status?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <div class="date-wrap"><input type="date" class="field field-mono" data-role="risk-field" data-field="identifiedDate" value="${risk.identifiedDate}" style="font-size:12.5px;" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+    <button class="icon-btn" data-action="delete-risk" title="Delete risk">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+    </button>
+  </div>`;
+}
+
+function renderRisksTab(){
+  const summaryEl = document.getElementById("riskSummary");
+  const counts = { High: 0, Medium: 0, Low: 0 };
+  allRisksFlat().forEach(({ risk }) => { if (risk.status !== "Closed") counts[risk.severity] = (counts[risk.severity] || 0) + 1; });
+  summaryEl.innerHTML = ["High", "Medium", "Low"].map(sev => {
+    const m = SEVERITY_META[sev];
+    return `<div class="chip" style="background:${m.soft};color:${m.color};">${sev}: ${counts[sev] || 0} open</div>`;
+  }).join("");
+
+  const root = document.getElementById("risksRoot");
+  if (!state.loaded || state.projects.length === 0){
+    root.innerHTML = `<div class="empty">No data loaded yet.</div>`;
+    return;
+  }
+  const groups = groupRisksByProject();
+  if (groups.length === 0){
+    root.innerHTML = `<div class="empty">No risks match this view.</div>`;
+    return;
+  }
+  const rowHead = `<div class="risk-wide-head"><span>Severity</span><span>Risk</span><span>Mitigation</span><span>Owner</span><span>Status</span><span>Identified</span><span></span></div>`;
+  root.innerHTML = groups.map(({ project, risks }) => {
+    const pMeta = STATUS_META[project.status] || STATUS_META["On Track"];
+    const collapsed = state.collapsedRiskGroups[project.id] !== false;
+    const statusCounts = { Open: 0, Mitigated: 0, Closed: 0 };
+    risks.forEach(r => { statusCounts[r.status] = (statusCounts[r.status] || 0) + 1; });
+    const statusPills = RISK_STATUS.map(s => {
+      const m = RISK_STATUS_META[s];
+      return `<span class="mini-chip" style="background:${m.soft};color:${m.color};padding:3px 10px;font-size:11.5px;">${statusCounts[s]} ${s}</span>`;
+    }).join("");
+    return `
+    <div class="phase-group">
+      <div class="grouped-project-header" data-action="toggle-risk-group" data-project-id="${project.id}" style="background:${pMeta.soft}; cursor:pointer;">
+        <button class="icon-btn" style="color:${pMeta.color};" title="${collapsed ? "Expand" : "Collapse"}">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${collapsed ? '<path d="M9 6l6 6-6 6"/>' : '<path d="M6 9l6 6 6-6"/>'}</svg>
+        </button>
+        <span class="dot" style="background:${pMeta.color};"></span>
+        <span class="title" style="color:${pMeta.color};">${esc(project.name || "Untitled initiative")}</span>
+        <span class="count" style="color:${pMeta.color};">${risks.length} risk${risks.length===1?"":"s"}</span>
+        <span style="display:flex; gap:6px; margin-left:auto;">${statusPills}</span>
+      </div>
+      ${collapsed ? "" : rowHead + risks.map(r => riskWideRowHtml(project, r)).join("")}
+    </div>`;
+  }).join("");
+  root.querySelectorAll(".wrap-textarea").forEach(autosizeTextarea);
+}
+
+// ---------- All Escalations tab (ranked by priority: High, Medium, Low) ----------
+const ESCALATION_PRIORITY_RANK = { High: 3, Medium: 2, Low: 1 };
+const ESCALATION_STATUS_RANK = { Open: 0, "In Progress": 1, Resolved: 2 };
+
+function allEscalationsFlat(){
+  const out = [];
+  state.projects.forEach(p => (p.escalations || []).forEach(e => out.push({ project: p, escalation: e })));
+  return out;
+}
+
+function filteredSortedEscalations(){
+  const q = state.escalationSearch.toLowerCase();
+  return allEscalationsFlat()
+    .filter(({ escalation }) => state.escalationPriorityFilter === "All" || escalation.priority === state.escalationPriorityFilter)
+    .filter(({ escalation }) => state.escalationStatusFilter === "All" || escalation.status === state.escalationStatusFilter)
+    .filter(({ escalation }) => state.escalationImpactFilter === "All" || (escalation.impact || "Other") === state.escalationImpactFilter)
+    .filter(({ project, escalation }) => !q ||
+      escalation.description.toLowerCase().includes(q) ||
+      project.name.toLowerCase().includes(q) ||
+      (escalation.owner || "").toLowerCase().includes(q))
+    .sort((a, b) => {
+      const prDiff = (ESCALATION_PRIORITY_RANK[b.escalation.priority] || 0) - (ESCALATION_PRIORITY_RANK[a.escalation.priority] || 0);
+      if (prDiff !== 0) return prDiff;
+      return (ESCALATION_STATUS_RANK[a.escalation.status] ?? 1) - (ESCALATION_STATUS_RANK[b.escalation.status] ?? 1);
+    });
+}
+
+function groupEscalationsByProject(){
+  const flat = filteredSortedEscalations();
+  const byProject = new Map();
+  flat.forEach(({ project, escalation }) => {
+    if (!byProject.has(project.id)) byProject.set(project.id, { project, escalations: [] });
+    byProject.get(project.id).escalations.push(escalation);
+  });
+  const groups = Array.from(byProject.values());
+  groups.sort((a, b) => {
+    const aBest = Math.max(...a.escalations.map(e => ESCALATION_PRIORITY_RANK[e.priority] || 0));
+    const bBest = Math.max(...b.escalations.map(e => ESCALATION_PRIORITY_RANK[e.priority] || 0));
+    if (bBest !== aBest) return bBest - aBest;
+    return a.project.name.localeCompare(b.project.name);
+  });
+  return groups;
+}
+
+function escWideRowHtml(project, escalation){
+  const pr = PRIORITY_META[escalation.priority] || PRIORITY_META.Medium;
+  const st = ESCALATION_STATUS_META[escalation.status] || ESCALATION_STATUS_META.Open;
+  const impact = escalation.impact || "Other";
+  return `
+  <div class="esc-wide-row" data-escalation-id="${escalation.id}" data-project-id="${project.id}">
+    <select class="sev-pill" data-role="escalation-field" data-field="priority" style="color:${pr.color};background:${pr.soft};">
+      ${Object.keys(PRIORITY_META).map(s => `<option value="${s}" ${s===escalation.priority?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <select class="field" data-role="escalation-field" data-field="impact" style="border:1px solid var(--border); border-radius:6px; font-size:12px;">
+      ${IMPACT_OPTIONS.map(opt => `<option value="${opt}" ${opt===impact?"selected":""}>${opt}</option>`).join("")}
+    </select>
+    <textarea rows="1" class="field wrap-textarea" data-role="escalation-field" data-field="description" placeholder="Issue description">${esc(escalation.description)}</textarea>
+    <input class="field" data-role="escalation-field" data-field="owner" value="${esc(escalation.owner)}" placeholder="Owner" />
+    <input class="field" data-role="escalation-field" data-field="escalatedTo" value="${esc(escalation.escalatedTo)}" placeholder="Escalated to" />
+    <select class="rstatus-select" data-role="escalation-field" data-field="status" style="color:${st.color};background:${st.soft};">
+      ${ESCALATION_STATUS.map(s => `<option value="${s}" ${s===escalation.status?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <div class="date-wrap"><input type="date" class="field field-mono" data-role="escalation-field" data-field="expectedResolutionDate" value="${escalation.expectedResolutionDate}" style="font-size:12.5px;" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+    <button class="icon-btn" data-action="delete-escalation" title="Delete escalation">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+    </button>
+  </div>`;
+}
+
+function renderEscalationsTab(){
+  const summaryEl = document.getElementById("escalationSummary");
+  const counts = { High: 0, Medium: 0, Low: 0 };
+  allEscalationsFlat().forEach(({ escalation }) => { if (escalation.status !== "Resolved") counts[escalation.priority] = (counts[escalation.priority] || 0) + 1; });
+  summaryEl.innerHTML = ["High", "Medium", "Low"].map(p => {
+    const m = PRIORITY_META[p];
+    return `<div class="chip" style="background:${m.soft};color:${m.color};">${p}: ${counts[p] || 0} open</div>`;
+  }).join("");
+
+  const root = document.getElementById("escalationsRoot");
+  if (!state.loaded || state.projects.length === 0){
+    root.innerHTML = `<div class="empty">No data loaded yet.</div>`;
+    return;
+  }
+  const groups = groupEscalationsByProject();
+  if (groups.length === 0){
+    root.innerHTML = `<div class="empty">No escalations match this view.</div>`;
+    return;
+  }
+  const rowHead = `<div class="esc-wide-head"><span>Priority</span><span>Impact</span><span>Issue</span><span>Owner</span><span>Escalated To</span><span>Status</span><span>Expected Resolution</span><span></span></div>`;
+  root.innerHTML = groups.map(({ project, escalations }) => {
+    const pMeta = STATUS_META[project.status] || STATUS_META["On Track"];
+    const collapsed = state.collapsedEscalationGroups[project.id] !== false;
+    const statusCounts = { Open: 0, "In Progress": 0, Resolved: 0 };
+    escalations.forEach(e => { statusCounts[e.status] = (statusCounts[e.status] || 0) + 1; });
+    const statusPills = ESCALATION_STATUS.map(s => {
+      const m = ESCALATION_STATUS_META[s];
+      return `<span class="mini-chip" style="background:${m.soft};color:${m.color};padding:3px 10px;font-size:11.5px;">${statusCounts[s]} ${s}</span>`;
+    }).join("");
+    return `
+    <div class="phase-group">
+      <div class="grouped-project-header" data-action="toggle-escalation-group" data-project-id="${project.id}" style="background:${pMeta.soft}; cursor:pointer;">
+        <button class="icon-btn" style="color:${pMeta.color};" title="${collapsed ? "Expand" : "Collapse"}">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${collapsed ? '<path d="M9 6l6 6-6 6"/>' : '<path d="M6 9l6 6 6-6"/>'}</svg>
+        </button>
+        <span class="dot" style="background:${pMeta.color};"></span>
+        <span class="title" style="color:${pMeta.color};">${esc(project.name || "Untitled initiative")}</span>
+        <span class="count" style="color:${pMeta.color};">${escalations.length} escalation${escalations.length===1?"":"s"}</span>
+        <span style="display:flex; gap:6px; margin-left:auto;">${statusPills}</span>
+      </div>
+      ${collapsed ? "" : rowHead + escalations.map(e => escWideRowHtml(project, e)).join("")}
+    </div>`;
+  }).join("");
+  root.querySelectorAll(".wrap-textarea").forEach(autosizeTextarea);
+}
+
+// ---------- event delegation ----------
+document.getElementById("searchInput").addEventListener("input", (e) => { state.search = e.target.value; render(); });
+document.getElementById("statusFilter").addEventListener("change", (e) => { state.statusFilter = e.target.value; render(); });
+document.getElementById("sortBySelect").addEventListener("change", (e) => { state.sortBy = e.target.value; render(); });
+document.getElementById("resetProjectFiltersBtn").addEventListener("click", () => {
+  state.search = "";
+  state.statusFilter = "All";
+  state.sortBy = "none";
+  document.getElementById("searchInput").value = "";
+  document.getElementById("sortBySelect").value = "none";
+  render();
+});
+document.getElementById("addProjectBtn").addEventListener("click", addProject);
+
+document.getElementById("tabProjectsBtn").addEventListener("click", () => { state.activeTab = "projects"; render(); });
+document.getElementById("tabSummaryBtn").addEventListener("click", () => { state.activeTab = "summary"; render(); });
+document.getElementById("tabRisksBtn").addEventListener("click", () => { state.activeTab = "risks"; render(); });
+document.getElementById("tabEscalationsBtn").addEventListener("click", () => { state.activeTab = "escalations"; render(); });
+document.getElementById("riskSearchInput").addEventListener("input", (e) => { state.riskSearch = e.target.value; renderRisksTab(); });
+document.getElementById("riskSeverityFilter").addEventListener("change", (e) => { state.riskSeverityFilter = e.target.value; renderRisksTab(); });
+document.getElementById("riskStatusFilter").addEventListener("change", (e) => { state.riskStatusFilter = e.target.value; renderRisksTab(); });
+document.getElementById("resetRiskFiltersBtn").addEventListener("click", () => {
+  state.riskSearch = "";
+  state.riskSeverityFilter = "All";
+  state.riskStatusFilter = "All";
+  document.getElementById("riskSearchInput").value = "";
+  document.getElementById("riskSeverityFilter").value = "All";
+  document.getElementById("riskStatusFilter").value = "All";
+  renderRisksTab();
+});
+document.getElementById("escalationSearchInput").addEventListener("input", (e) => { state.escalationSearch = e.target.value; renderEscalationsTab(); });
+document.getElementById("escalationPriorityFilter").addEventListener("change", (e) => { state.escalationPriorityFilter = e.target.value; renderEscalationsTab(); });
+document.getElementById("escalationStatusFilter").addEventListener("change", (e) => { state.escalationStatusFilter = e.target.value; renderEscalationsTab(); });
+document.getElementById("escalationImpactFilter").addEventListener("change", (e) => { state.escalationImpactFilter = e.target.value; renderEscalationsTab(); });
+document.getElementById("resetEscalationFiltersBtn").addEventListener("click", () => {
+  state.escalationSearch = "";
+  state.escalationPriorityFilter = "All";
+  state.escalationStatusFilter = "All";
+  state.escalationImpactFilter = "All";
+  document.getElementById("escalationSearchInput").value = "";
+  document.getElementById("escalationPriorityFilter").value = "All";
+  document.getElementById("escalationStatusFilter").value = "All";
+  document.getElementById("escalationImpactFilter").value = "All";
+  renderEscalationsTab();
+});
+
+document.getElementById("tabPhaseBtn").addEventListener("click", () => { state.activeTab = "phase"; render(); });
+document.getElementById("phaseSearchInput").addEventListener("input", (e) => { state.phaseSearch = e.target.value; renderPhaseTab(); });
+document.getElementById("expandAllPhasesBtn").addEventListener("click", () => {
+  state.collapsedPhases = {};
+  renderPhaseTab();
+});
+document.getElementById("collapseAllPhasesBtn").addEventListener("click", () => {
+  PHASE_OPTIONS.forEach(phase => { state.collapsedPhases[phase] = true; });
+  renderPhaseTab();
+});
+document.getElementById("resetPhaseFiltersBtn").addEventListener("click", () => {
+  state.phaseSearch = "";
+  state.collapsedPhases = {};
+  document.getElementById("phaseSearchInput").value = "";
+  renderPhaseTab();
+});
+document.getElementById("phaseRoot").addEventListener("click", (e) => {
+  const headerEl = e.target.closest("[data-action='toggle-phase']");
+  if (!headerEl) return;
+  const phase = headerEl.dataset.phase;
+  state.collapsedPhases[phase] = !state.collapsedPhases[phase];
+  renderPhaseTab();
+});
+
+document.getElementById("tabHealthBtn").addEventListener("click", () => { state.activeTab = "health"; render(); });
+document.getElementById("healthSearchInput").addEventListener("input", (e) => { state.healthSearch = e.target.value; renderHealthTab(); });
+document.getElementById("expandAllHealthBtn").addEventListener("click", () => {
+  state.collapsedHealthGroups = {};
+  renderHealthTab();
+});
+document.getElementById("collapseAllHealthBtn").addEventListener("click", () => {
+  STATUS_ORDER.forEach(status => { state.collapsedHealthGroups[status] = true; });
+  renderHealthTab();
+});
+document.getElementById("resetHealthFiltersBtn").addEventListener("click", () => {
+  state.healthSearch = "";
+  state.collapsedHealthGroups = {};
+  document.getElementById("healthSearchInput").value = "";
+  renderHealthTab();
+});
+document.getElementById("healthRoot").addEventListener("click", (e) => {
+  const headerEl = e.target.closest("[data-action='toggle-health']");
+  if (!headerEl) return;
+  const status = headerEl.dataset.health;
+  state.collapsedHealthGroups[status] = !state.collapsedHealthGroups[status];
+  renderHealthTab();
+});
+
+const risksRootEl = document.getElementById("risksRoot");
+risksRootEl.addEventListener("click", (e) => {
+  const actionEl = e.target.closest("[data-action='delete-risk']");
+  if (actionEl){
+    const row = e.target.closest("[data-risk-id]");
+    deleteRisk(row.dataset.projectId, row.dataset.riskId);
+    return;
+  }
+  const groupHeader = e.target.closest("[data-action='toggle-risk-group']");
+  if (groupHeader){
+    const pid = groupHeader.dataset.projectId;
+    state.collapsedRiskGroups[pid] = (state.collapsedRiskGroups[pid] !== false) ? false : true;
+    renderRisksTab();
+  }
+});
+risksRootEl.addEventListener("focusout", (e) => {
+  const el = e.target;
+  const isTextField = el.dataset.role === "risk-field" &&
+    ((el.tagName === "INPUT" && el.type !== "date") || el.tagName === "TEXTAREA");
+  if (isTextField){
+    const row = el.closest("[data-risk-id]");
+    updateRisk(row.dataset.projectId, row.dataset.riskId, el.dataset.field, el.value);
+    if (DATE_FIELDS.has(el.dataset.field)) renderRisksTab();
+  }
+});
+risksRootEl.addEventListener("input", (e) => {
+  if (e.target.classList.contains("wrap-textarea")) autosizeTextarea(e.target);
+});
+risksRootEl.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset.role === "risk-field"){
+    const row = el.closest("[data-risk-id]");
+    updateRisk(row.dataset.projectId, row.dataset.riskId, el.dataset.field, el.value);
+    renderRisksTab();
+  }
+});
+
+const escalationsRootEl = document.getElementById("escalationsRoot");
+escalationsRootEl.addEventListener("click", (e) => {
+  const actionEl = e.target.closest("[data-action='delete-escalation']");
+  if (actionEl){
+    const row = e.target.closest("[data-escalation-id]");
+    deleteEscalation(row.dataset.projectId, row.dataset.escalationId);
+    return;
+  }
+  const groupHeader = e.target.closest("[data-action='toggle-escalation-group']");
+  if (groupHeader){
+    const pid = groupHeader.dataset.projectId;
+    state.collapsedEscalationGroups[pid] = (state.collapsedEscalationGroups[pid] !== false) ? false : true;
+    renderEscalationsTab();
+  }
+});
+escalationsRootEl.addEventListener("focusout", (e) => {
+  const el = e.target;
+  const isTextField = el.dataset.role === "escalation-field" &&
+    ((el.tagName === "INPUT" && el.type !== "date") || el.tagName === "TEXTAREA");
+  if (isTextField){
+    const row = el.closest("[data-escalation-id]");
+    updateEscalation(row.dataset.projectId, row.dataset.escalationId, el.dataset.field, el.value);
+    if (DATE_FIELDS.has(el.dataset.field)) renderEscalationsTab();
+  }
+});
+escalationsRootEl.addEventListener("input", (e) => {
+  if (e.target.classList.contains("wrap-textarea")) autosizeTextarea(e.target);
+});
+escalationsRootEl.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset.role === "escalation-field"){
+    const row = el.closest("[data-escalation-id]");
+    updateEscalation(row.dataset.projectId, row.dataset.escalationId, el.dataset.field, el.value);
+    renderEscalationsTab();
+  }
+});
+
+const rootEl = document.getElementById("projectsRoot");
+
+// Shared wiring for any container that renders projectHtml() rows — used by both
+// the Projects tab and the By Phase tab, so editing/expanding/deleting behaves
+// identically in either place without duplicating the underlying logic.
+function attachProjectRootHandlers(el){
+  el.addEventListener("click", (e) => {
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+    const projCard = e.target.closest("[data-project-id]");
+    const projectId = projCard ? projCard.dataset.projectId : null;
+    const action = actionEl.dataset.action;
+
+    if (action === "toggle-section"){
+      const section = actionEl.dataset.section; // "risks" | "escalations" | "milestones" | "notes" | undefined (chevron)
+      const current = state.expandedSection[projectId];
+      if (section){
+        if (current === section){
+          state.expandedSection[projectId] = null; // clicking the same pill again closes it
+        } else {
+          state.expandedSection[projectId] = section; // clicking a different pill switches to it
+          state.lastSection[projectId] = section;
+        }
+      } else if (current){
+        state.expandedSection[projectId] = null; // chevron collapses whatever is open
+      } else {
+        state.expandedSection[projectId] = state.lastSection[projectId] || "risks"; // chevron re-opens the last section
+      }
+      render();
+    } else if (action === "delete-project"){
+      if (pendingDeleteProjectId === projectId){
+        clearTimeout(pendingDeleteTimer);
+        pendingDeleteProjectId = null;
+        deleteProject(projectId);
+      } else {
+        pendingDeleteProjectId = projectId;
+        clearTimeout(pendingDeleteTimer);
+        pendingDeleteTimer = setTimeout(() => { pendingDeleteProjectId = null; render(); }, 3000);
+        render();
+      }
+    } else if (action === "add-risk"){
+      addRisk(projectId);
+    } else if (action === "delete-risk"){
+      const riskRow = e.target.closest("[data-risk-id]");
+      deleteRisk(riskRow.dataset.projectId, riskRow.dataset.riskId);
+    } else if (action === "add-escalation"){
+      addEscalation(projectId);
+    } else if (action === "delete-escalation"){
+      const escRow = e.target.closest("[data-escalation-id]");
+      deleteEscalation(escRow.dataset.projectId, escRow.dataset.escalationId);
+    } else if (action === "add-milestone"){
+      addMilestone(projectId);
+    } else if (action === "delete-milestone"){
+      const msRow = e.target.closest("[data-milestone-id]");
+      deleteMilestone(msRow.dataset.projectId, msRow.dataset.milestoneId);
+    }
+  });
+
+  // commit text/number inputs on blur (focusout bubbles, blur does not)
+  el.addEventListener("focusout", (e) => {
+    const target = e.target;
+    const isTextField = target.dataset.role === "proj-field" &&
+      ((target.tagName === "INPUT" && target.type !== "date") || target.tagName === "TEXTAREA");
+    if (isTextField){
+      const projCard = target.closest("[data-project-id]");
+      updateProject(projCard.dataset.projectId, target.dataset.field, target.value);
+      if (target.dataset.field === "contractValue" || target.dataset.field === "name" || DATE_FIELDS.has(target.dataset.field)) render();
+    }
+    if (target.dataset.role === "risk-field" && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")){
+      const row = target.closest("[data-risk-id]");
+      updateRisk(row.dataset.projectId, row.dataset.riskId, target.dataset.field, target.value);
+      if (DATE_FIELDS.has(target.dataset.field)) render();
+    }
+    const isEscTextField = target.dataset.role === "escalation-field" &&
+      ((target.tagName === "INPUT" && target.type !== "date") || target.tagName === "TEXTAREA");
+    if (isEscTextField){
+      const row = target.closest("[data-escalation-id]");
+      updateEscalation(row.dataset.projectId, row.dataset.escalationId, target.dataset.field, target.value);
+      if (DATE_FIELDS.has(target.dataset.field)) render();
+    }
+    const isMilestoneTextField = target.dataset.role === "milestone-field" &&
+      ((target.tagName === "INPUT" && target.type !== "date") || target.tagName === "TEXTAREA");
+    if (isMilestoneTextField){
+      const row = target.closest("[data-milestone-id]");
+      updateMilestone(row.dataset.projectId, row.dataset.milestoneId, target.dataset.field, target.value);
+    }
+  });
+
+  el.addEventListener("input", (e) => {
+    if (e.target.classList.contains("name-textarea") || e.target.classList.contains("wrap-textarea")) autosizeTextarea(e.target);
+  });
+
+  // commit selects / dates immediately (discrete change)
+  el.addEventListener("change", (e) => {
+    const target = e.target;
+    if (target.dataset.role === "proj-field"){
+      const projCard = target.closest("[data-project-id]");
+      updateProject(projCard.dataset.projectId, target.dataset.field, target.value);
+      render();
+    }
+    if (target.dataset.role === "risk-field"){
+      const row = target.closest("[data-risk-id]");
+      updateRisk(row.dataset.projectId, row.dataset.riskId, target.dataset.field, target.value);
+      render();
+    }
+    if (target.dataset.role === "escalation-field"){
+      const row = target.closest("[data-escalation-id]");
+      updateEscalation(row.dataset.projectId, row.dataset.escalationId, target.dataset.field, target.value);
+      render();
+    }
+    if (target.dataset.role === "milestone-field"){
+      const row = target.closest("[data-milestone-id]");
+      updateMilestone(row.dataset.projectId, row.dataset.milestoneId, target.dataset.field, target.value);
+      render();
+    }
+  });
+}
+
+// auto-grow the name textarea as the user types, so long names wrap instead of scrolling
+function autosizeTextarea(el){
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
+attachProjectRootHandlers(rootEl);
+attachProjectRootHandlers(document.getElementById("phaseRoot"));
+attachProjectRootHandlers(document.getElementById("healthRoot"));
+
+loadData();
+
+
+
+  const now = new Date();
+  document.getElementById("briefingDate").textContent =
+    now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) + " · Delivery Operations · Portfolio Overview";
+  document.getElementById("asOfDate").textContent =
+    now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " · " +
+    now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+
+// ---------- glue: switching between the briefing splash and the full dashboard ----------
+const NAV_TAB_IDS = {
+  splash: "navTabOverview",
+  summary: "navTabSummary",
+  projects: "navTabProjects",
+  phase: "navTabPhase",
+  health: "navTabHealth",
+  risks: "navTabRisks",
+  escalations: "navTabEscalations",
+};
+
+function setActiveNavTab(key){
+  Object.values(NAV_TAB_IDS).forEach(id => document.getElementById(id).classList.remove("splash-active"));
+  const activeId = NAV_TAB_IDS[key];
+  if (activeId) document.getElementById(activeId).classList.add("splash-active");
+}
+
+function navGoDashboard(tab){
+  document.getElementById("splashScreen").style.display = "none";
+  document.getElementById("dashboardScreen").style.display = "";
+  setActiveNavTab(tab || "projects");
+  if (tab) { state.activeTab = tab; render(); }
+}
+
+function navGoSplash(){
+  document.getElementById("dashboardScreen").style.display = "none";
+  document.getElementById("splashScreen").style.display = "";
+  setActiveNavTab("splash");
+}
+
+// Keep the persistent nav's active tab correct even if the dashboard's own internal
+// tab buttons are used directly (rather than the top nav) while inside the dashboard.
+const _origRender = render;
+render = function(){
+  _origRender();
+  if (document.getElementById("dashboardScreen").style.display !== "none"){
+    setActiveNavTab(state.activeTab);
+  }
+};
+
+// Position the sticky tab bar exactly below the header, whatever its real rendered height is.
+function syncStickyOffset(){
+  document.querySelector(".tabbar").style.top = document.querySelector(".header").offsetHeight + "px";
+}
+window.addEventListener("resize", syncStickyOffset);
+syncStickyOffset();
+</script>
+</body>
+</html>
