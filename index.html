@@ -116,6 +116,8 @@
              font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
   .milestone-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
              font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .attachment-pill{ display:flex; align-items:center; gap:5px; border:none; border-radius:20px; padding:5px 12px;
+             font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
   .milestone-row{ display:grid; grid-template-columns: 130px minmax(140px,1.8fr) 130px 28px;
              gap:10px; align-items:center; padding:8px 10px; border-radius:8px; background:var(--surface);
              border:1px solid var(--border); margin-bottom:6px; }
@@ -123,6 +125,15 @@
              gap:10px; padding:0 10px 6px; font-size:11px; font-weight:700; letter-spacing:.4px;
              text-transform:uppercase; color:var(--ink-soft); }
   .add-milestone{ margin-top:8px; display:flex; align-items:center; gap:6px; border:1px solid var(--border);
+             background:var(--surface); color:var(--accent); border-radius:8px; padding:6px 12px;
+             font-size:12.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .attachment-row{ display:grid; grid-template-columns: minmax(140px,1.6fr) 160px minmax(160px,2fr) 130px 28px;
+             gap:10px; align-items:center; padding:8px 10px; border-radius:8px; background:var(--surface);
+             border:1px solid var(--border); margin-bottom:6px; }
+  .attachment-head{ display:grid; grid-template-columns: minmax(140px,1.6fr) 160px minmax(160px,2fr) 130px 28px;
+             gap:10px; padding:0 10px 6px; font-size:11px; font-weight:700; letter-spacing:.4px;
+             text-transform:uppercase; color:var(--ink-soft); }
+  .add-attachment{ margin-top:8px; display:flex; align-items:center; gap:6px; border:1px solid var(--border);
              background:var(--surface); color:var(--accent); border-radius:8px; padding:6px 12px;
              font-size:12.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
 
@@ -304,7 +315,7 @@
     <span class="sq"></span> All Initiatives <span class="splash-badge neutral">17</span>
   </a>
   <a class="tab" id="navTabPhase" href="#" onclick="navGoDashboard('phase'); return false;"><span class="sq"></span> Initiatives By Phase</a>
-  <a class="tab" id="navTabHealth" href="#" onclick="navGoDashboard('health'); return false;"><span class="sq"></span> Initiatives By Health</a>
+  <a class="tab" id="navTabHealth" href="#" onclick="navGoDashboard('health'); return false;"><span class="sq"></span> Initiatives By Status</a>
   <a class="tab" id="navTabRisks" href="#" onclick="navGoDashboard('risks'); return false;"><span class="sq"></span> All Risks <span class="splash-badge" id="openItemsBadge">5</span></a>
   <a class="tab" id="navTabEscalations" href="#" onclick="navGoDashboard('escalations'); return false;"><span class="sq"></span> All Escalations</a>
 </div>
@@ -387,7 +398,7 @@
     <button class="tab-btn active" data-tab="projects" id="tabProjectsBtn">Initiatives</button>
     <button class="tab-btn" data-tab="summary" id="tabSummaryBtn">Key Initiatives</button>
     <button class="tab-btn" data-tab="phase" id="tabPhaseBtn">Initiatives By Phase</button>
-    <button class="tab-btn" data-tab="health" id="tabHealthBtn">Initiatives By Health</button>
+    <button class="tab-btn" data-tab="health" id="tabHealthBtn">Initiatives By Status</button>
     <button class="tab-btn" data-tab="risks" id="tabRisksBtn">All Risks</button>
     <button class="tab-btn" data-tab="escalations" id="tabEscalationsBtn">All Escalations</button>
   </div>
@@ -399,7 +410,7 @@
         <input id="searchInput" placeholder="Search initiative, SDM, CSM, or product" />
       </div>
       <select class="filter" id="statusFilter">
-        <option value="All">All health</option>
+        <option value="All">All statuses</option>
       </select>
       <select class="filter" id="sortBySelect">
         <option value="none">Sort by…</option>
@@ -540,6 +551,7 @@ const MILESTONE_STATUS_META = {
   "Complete": { color: "#0F6B5C", soft: "#DCEEE9" },
   "Delayed": { color: "#B3452C", soft: "#F6E4DE" },
 };
+const ATTACHMENT_TYPE_OPTIONS = ["Google Doc", "Google Sheet", "Google Slides", "Google Form", "Google Drive Folder", "Other"];
 const PHASE_OPTIONS = ["Initiation", "Planning / Design", "Build & Deliver", "Validate", "Go-Live & Support"];
 const PHASE_META = {
   "Initiation": { color: "#64707D", soft: "#E9EBEE" },
@@ -944,7 +956,7 @@ const SEED_DATA = [
 
 let state = {
   projects: [],
-  expandedSection: {}, // projectId -> "notes" | "milestones" | "risks" | "escalations" | "jira" | null
+  expandedSection: {}, // projectId -> "notes" | "milestones" | "risks" | "escalations" | "jira" | "attachments" | null
   lastSection: {},     // projectId -> last section shown (remembered for the chevron toggle)
   search: "",
   statusFilter: "All",
@@ -1199,7 +1211,7 @@ function exportPdfSummary(){
 
   doc.autoTable({
     startY: summaryY + 16,
-    head: [["Initiative", "Product", "SDM", "CSM", "Start", "End", "Health", "Delivery Phase", "Segment", "% Complete", "TCV", "Open Risks", "Open Esc.", "Notes"]],
+    head: [["Initiative", "Product", "SDM", "CSM", "Start", "End", "Status", "Delivery Phase", "Segment", "% Complete", "TCV", "Open Risks", "Open Esc.", "Notes"]],
     body: rows,
     styles: { font: "helvetica", fontSize: 8.5, textColor: [28, 36, 48], cellPadding: 5 },
     headStyles: { fillColor: [28, 36, 48], textColor: [255, 255, 255], fontStyle: "bold" },
@@ -1658,7 +1670,7 @@ function deleteProject(id){
 }
 function addProject(){
   const p = { id: uid(), name:"", product:"", sdm:"", csm:"", startDate:new Date().toISOString().slice(0,10),
-              endDate:new Date().toISOString().slice(0,10), status:"On Track", phase:"Initiation", segment:"", contractValue:0, percentComplete:0, notes:"", jiraLink:"", risks:[], escalations:[], milestones:[] };
+              endDate:new Date().toISOString().slice(0,10), status:"On Track", phase:"Initiation", segment:"", contractValue:0, percentComplete:0, notes:"", jiraLink:"", risks:[], escalations:[], milestones:[], attachments:[] };
   state.projects.unshift(p);
   scheduleSave(); render();
 }
@@ -1735,16 +1747,84 @@ function deleteMilestone(projectId, milestoneId){
   scheduleSave(); render();
 }
 
+function addAttachment(projectId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  if (!p.attachments) p.attachments = [];
+  p.attachments.push({
+    id: uid(), title: "", type: "Google Doc", link: "", dateAdded: new Date().toISOString().slice(0,10),
+  });
+  scheduleSave(); render();
+}
+function updateAttachment(projectId, attachmentId, field, value){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  const a = (p.attachments || []).find(a => a.id === attachmentId);
+  if (!a) return;
+  a[field] = field === "dateAdded" ? normalizeDateInput(value) : value;
+  scheduleSave();
+}
+function deleteAttachment(projectId, attachmentId){
+  const p = state.projects.find(p => p.id === projectId);
+  if (!p) return;
+  p.attachments = (p.attachments || []).filter(a => a.id !== attachmentId);
+  scheduleSave(); render();
+}
+
 // ---------- render ----------
 function esc(s){ return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
+// Figures out which projects/risks/escalations are "in view" for the current
+// tab's filters, so the four stat boxes above the tabs can recalculate to match
+// whatever's actually visible. "summary" (Key Initiatives) and the splash screen
+// (Portfolio Overview) intentionally fall through to the unfiltered, whole-
+// portfolio numbers — those two views aren't about a filtered slice.
+function computeStatsContext(){
+  const tab = state.activeTab;
+  const textMatch = (p, q) => !q ||
+    p.name.toLowerCase().includes(q) || p.sdm.toLowerCase().includes(q) ||
+    (p.csm||"").toLowerCase().includes(q) || (p.product||"").toLowerCase().includes(q);
+  const openRisksOf = (projects) => projects.reduce((s,p) => s + p.risks.filter(r => r.status !== "Closed").length, 0);
+  const openEscOf = (projects) => projects.reduce((s,p) => s + (p.escalations || []).filter(e => e.status !== "Resolved").length, 0);
+
+  if (tab === "projects"){
+    const projects = filteredProjects();
+    return { projects, openRisks: openRisksOf(projects), openEscalations: openEscOf(projects) };
+  }
+  if (tab === "phase"){
+    const q = state.phaseSearch.toLowerCase();
+    const projects = state.projects.filter(p => textMatch(p, q));
+    return { projects, openRisks: openRisksOf(projects), openEscalations: openEscOf(projects) };
+  }
+  if (tab === "health"){
+    const q = state.healthSearch.toLowerCase();
+    const projects = state.projects.filter(p => textMatch(p, q));
+    return { projects, openRisks: openRisksOf(projects), openEscalations: openEscOf(projects) };
+  }
+  if (tab === "risks"){
+    const filtered = filteredSortedRisks(); // respects severity/status/search filters
+    const uniqueProjects = new Map();
+    filtered.forEach(({ project }) => uniqueProjects.set(project.id, project));
+    const projects = Array.from(uniqueProjects.values());
+    return { projects, openRisks: filtered.filter(({ risk }) => risk.status !== "Closed").length, openEscalations: openEscOf(projects) };
+  }
+  if (tab === "escalations"){
+    const filtered = filteredSortedEscalations(); // respects priority/status/impact/search filters
+    const uniqueProjects = new Map();
+    filtered.forEach(({ project }) => uniqueProjects.set(project.id, project));
+    const projects = Array.from(uniqueProjects.values());
+    return { projects, openRisks: openRisksOf(projects), openEscalations: filtered.filter(({ escalation }) => escalation.status !== "Resolved").length };
+  }
+  // "summary" (Key Initiatives) and anything else — whole portfolio, unfiltered
+  const projects = state.projects;
+  return { projects, openRisks: openRisksOf(projects), openEscalations: openEscOf(projects) };
+}
+
 function renderStats(){
-  const total = state.projects.length;
-  const value = state.projects.reduce((s,p) => s + (Number(p.contractValue)||0), 0);
-  const openRisks = state.projects.reduce((s,p) => s + p.risks.filter(r => r.status !== "Closed").length, 0);
-  const openEscalations = state.projects.reduce((s,p) => s + (p.escalations || []).filter(e => e.status !== "Resolved").length, 0);
+  const { projects, openRisks, openEscalations } = computeStatsContext();
+  const value = projects.reduce((s,p) => s + (Number(p.contractValue)||0), 0);
   const cards = [
-    ["Active Initiatives", total],
+    ["Active Initiatives", projects.length],
     ["Total Contract Value (TCV)", fmtCurrency(value)],
     ["Open Risks", openRisks],
     ["Open Escalations", openEscalations],
@@ -1757,7 +1837,7 @@ function renderStats(){
 function statusFilterOptions(){
   const sel = document.getElementById("statusFilter");
   const current = state.statusFilter;
-  sel.innerHTML = `<option value="All">All health</option>` +
+  sel.innerHTML = `<option value="All">All statuses</option>` +
     STATUS_ORDER.map(s => `<option value="${s}" ${s===current?"selected":""}>${s}</option>`).join("");
 }
 
@@ -1823,6 +1903,27 @@ function milestoneRowHtml(p, m){
   </div>`;
 }
 
+function attachmentRowHtml(p, a){
+  const hasLink = !!(a.link && a.link.trim());
+  return `
+  <div class="attachment-row" data-attachment-id="${a.id}" data-project-id="${p.id}">
+    <input class="field" data-role="attachment-field" data-field="title" value="${esc(a.title)}" placeholder="Title" />
+    <select class="field" data-role="attachment-field" data-field="type" style="border:1px solid var(--border); background:var(--surface2); color:var(--ink); border-radius:6px;">
+      ${ATTACHMENT_TYPE_OPTIONS.map(t => `<option value="${t}" ${t===a.type?"selected":""}>${t}</option>`).join("")}
+    </select>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <input type="url" class="field" data-role="attachment-field" data-field="link" value="${esc(a.link)}" placeholder="Paste a Google Doc/Sheet/Slides/Drive link" style="flex:1 1 auto;" />
+      ${hasLink ? `<a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer" class="icon-btn" title="Open link" style="flex:0 0 auto;">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+      </a>` : ""}
+    </div>
+    <div class="date-wrap"><input type="date" class="field field-mono" data-role="attachment-field" data-field="dateAdded" value="${a.dateAdded}" style="font-size:12.5px;" /><svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+    <button class="icon-btn" data-action="delete-attachment" title="Delete attachment">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="#64707D" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-1 14a1 1 0 01-1 1H7a1 1 0 01-1-1L5 6"/></svg>
+    </button>
+  </div>`;
+}
+
 function escalationCardHtml(p, e){
   const pr = PRIORITY_META[e.priority] || PRIORITY_META.Medium;
   const st = ESCALATION_STATUS_META[e.status] || ESCALATION_STATUS_META.Open;
@@ -1877,6 +1978,7 @@ function projectHtml(p){
   const escPillColor = openEscalations.length ? (highOpenEsc ? "#B3452C" : "#C98A2C") : "var(--ink-soft)";
   const hasNotes = !!(p.notes && p.notes.trim());
   const hasJira = !!(p.jiraLink && p.jiraLink.trim());
+  const attachments = p.attachments || [];
 
   const milestones = p.milestones || [];
   const openMilestones = milestones.filter(m => m.status !== "Complete");
@@ -1932,7 +2034,7 @@ function projectHtml(p){
           </div>
         </div>
         <div class="proj-field-wrap">
-          <label class="proj-field-label">Health</label>
+          <label class="proj-field-label">Status</label>
           <select class="badge" data-role="proj-field" data-field="status" style="color:${meta.color};background:${meta.soft};">
             ${STATUS_ORDER.map(s => `<option value="${s}" ${s===p.status?"selected":""}>${s}</option>`).join("")}
           </select>
@@ -1991,6 +2093,13 @@ function projectHtml(p){
             JIRA
           </button>
         </div>
+        <div class="proj-field-wrap spacer">
+          <span class="proj-field-label">&nbsp;</span>
+          <button class="attachment-pill" data-action="toggle-section" data-section="attachments" style="background:${attachments.length ? "var(--accent-soft)" : "var(--surface2)"};color:${attachments.length ? "var(--accent)" : "var(--ink-soft)"}; ${activeSection==='attachments' ? "box-shadow:0 0 0 2px currentColor;" : ""}">
+            <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"/></svg>
+            ${attachments.length} attachment${attachments.length === 1 ? "" : "s"}
+          </button>
+        </div>
         <div class="proj-field-wrap spacer" style="margin-left:auto;">
           <span class="proj-field-label">&nbsp;</span>
           ${pendingDeleteProjectId === p.id ? `
@@ -2017,6 +2126,12 @@ function projectHtml(p){
         <input type="url" class="field" data-role="proj-field" data-field="jiraLink" value="${esc(p.jiraLink)}" placeholder="Paste a link to this initiative's JIRA dashboard/board" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; flex:1 1 auto;" />
         ${hasJira ? `<a href="${esc(p.jiraLink)}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost" style="text-decoration:none; flex:0 0 auto;">Open ↗</a>` : ""}
       </div>` : ""}
+
+      ${activeSection === "attachments" ? `
+      <div class="panel-section-title">Attachments</div>
+      ${attachments.length ? `<div class="attachment-head"><span>Title</span><span>Type</span><span>Link</span><span>Date Added</span><span></span></div>` : ""}
+      ${attachments.map(a => attachmentRowHtml(p, a)).join("")}
+      <button class="add-attachment" data-action="add-attachment">+ Add an attachment link</button>` : ""}
 
       ${activeSection === "milestones" ? `
       <div class="panel-section-title">Key Milestones</div>
@@ -2294,7 +2409,7 @@ function renderHealthTab(){
         </span>` : ""}
         ${group.length ? `<span class="tcv" style="color:${pm.color};">${fmtCurrency(groupTcv)}</span>` : ""}
       </div>
-      ${collapsed ? "" : (group.length ? group.map(projectHtml).join("") : `<div class="empty" style="padding:20px;">No initiatives with this health status.</div>`)}
+      ${collapsed ? "" : (group.length ? group.map(projectHtml).join("") : `<div class="empty" style="padding:20px;">No initiatives with this status.</div>`)}
     </div>`;
   }).join("");
 
@@ -2543,9 +2658,9 @@ document.getElementById("tabProjectsBtn").addEventListener("click", () => { stat
 document.getElementById("tabSummaryBtn").addEventListener("click", () => { state.activeTab = "summary"; render(); });
 document.getElementById("tabRisksBtn").addEventListener("click", () => { state.activeTab = "risks"; render(); });
 document.getElementById("tabEscalationsBtn").addEventListener("click", () => { state.activeTab = "escalations"; render(); });
-document.getElementById("riskSearchInput").addEventListener("input", (e) => { state.riskSearch = e.target.value; renderRisksTab(); });
-document.getElementById("riskSeverityFilter").addEventListener("change", (e) => { state.riskSeverityFilter = e.target.value; renderRisksTab(); });
-document.getElementById("riskStatusFilter").addEventListener("change", (e) => { state.riskStatusFilter = e.target.value; renderRisksTab(); });
+document.getElementById("riskSearchInput").addEventListener("input", (e) => { state.riskSearch = e.target.value; renderRisksTab(); renderStats(); });
+document.getElementById("riskSeverityFilter").addEventListener("change", (e) => { state.riskSeverityFilter = e.target.value; renderRisksTab(); renderStats(); });
+document.getElementById("riskStatusFilter").addEventListener("change", (e) => { state.riskStatusFilter = e.target.value; renderRisksTab(); renderStats(); });
 document.getElementById("resetRiskFiltersBtn").addEventListener("click", () => {
   state.riskSearch = "";
   state.riskSeverityFilter = "All";
@@ -2554,11 +2669,12 @@ document.getElementById("resetRiskFiltersBtn").addEventListener("click", () => {
   document.getElementById("riskSeverityFilter").value = "All";
   document.getElementById("riskStatusFilter").value = "All";
   renderRisksTab();
+  renderStats();
 });
-document.getElementById("escalationSearchInput").addEventListener("input", (e) => { state.escalationSearch = e.target.value; renderEscalationsTab(); });
-document.getElementById("escalationPriorityFilter").addEventListener("change", (e) => { state.escalationPriorityFilter = e.target.value; renderEscalationsTab(); });
-document.getElementById("escalationStatusFilter").addEventListener("change", (e) => { state.escalationStatusFilter = e.target.value; renderEscalationsTab(); });
-document.getElementById("escalationImpactFilter").addEventListener("change", (e) => { state.escalationImpactFilter = e.target.value; renderEscalationsTab(); });
+document.getElementById("escalationSearchInput").addEventListener("input", (e) => { state.escalationSearch = e.target.value; renderEscalationsTab(); renderStats(); });
+document.getElementById("escalationPriorityFilter").addEventListener("change", (e) => { state.escalationPriorityFilter = e.target.value; renderEscalationsTab(); renderStats(); });
+document.getElementById("escalationStatusFilter").addEventListener("change", (e) => { state.escalationStatusFilter = e.target.value; renderEscalationsTab(); renderStats(); });
+document.getElementById("escalationImpactFilter").addEventListener("change", (e) => { state.escalationImpactFilter = e.target.value; renderEscalationsTab(); renderStats(); });
 document.getElementById("resetEscalationFiltersBtn").addEventListener("click", () => {
   state.escalationSearch = "";
   state.escalationPriorityFilter = "All";
@@ -2569,10 +2685,11 @@ document.getElementById("resetEscalationFiltersBtn").addEventListener("click", (
   document.getElementById("escalationStatusFilter").value = "All";
   document.getElementById("escalationImpactFilter").value = "All";
   renderEscalationsTab();
+  renderStats();
 });
 
 document.getElementById("tabPhaseBtn").addEventListener("click", () => { state.activeTab = "phase"; render(); });
-document.getElementById("phaseSearchInput").addEventListener("input", (e) => { state.phaseSearch = e.target.value; renderPhaseTab(); });
+document.getElementById("phaseSearchInput").addEventListener("input", (e) => { state.phaseSearch = e.target.value; renderPhaseTab(); renderStats(); });
 document.getElementById("expandAllPhasesBtn").addEventListener("click", () => {
   state.collapsedPhases = {};
   renderPhaseTab();
@@ -2586,6 +2703,7 @@ document.getElementById("resetPhaseFiltersBtn").addEventListener("click", () => 
   state.collapsedPhases = {};
   document.getElementById("phaseSearchInput").value = "";
   renderPhaseTab();
+  renderStats();
 });
 document.getElementById("phaseRoot").addEventListener("click", (e) => {
   const headerEl = e.target.closest("[data-action='toggle-phase']");
@@ -2596,7 +2714,7 @@ document.getElementById("phaseRoot").addEventListener("click", (e) => {
 });
 
 document.getElementById("tabHealthBtn").addEventListener("click", () => { state.activeTab = "health"; render(); });
-document.getElementById("healthSearchInput").addEventListener("input", (e) => { state.healthSearch = e.target.value; renderHealthTab(); });
+document.getElementById("healthSearchInput").addEventListener("input", (e) => { state.healthSearch = e.target.value; renderHealthTab(); renderStats(); });
 document.getElementById("expandAllHealthBtn").addEventListener("click", () => {
   state.collapsedHealthGroups = {};
   renderHealthTab();
@@ -2610,6 +2728,7 @@ document.getElementById("resetHealthFiltersBtn").addEventListener("click", () =>
   state.collapsedHealthGroups = {};
   document.getElementById("healthSearchInput").value = "";
   renderHealthTab();
+  renderStats();
 });
 document.getElementById("healthRoot").addEventListener("click", (e) => {
   const headerEl = e.target.closest("[data-action='toggle-health']");
@@ -2748,6 +2867,11 @@ function attachProjectRootHandlers(el){
     } else if (action === "delete-milestone"){
       const msRow = e.target.closest("[data-milestone-id]");
       deleteMilestone(msRow.dataset.projectId, msRow.dataset.milestoneId);
+    } else if (action === "add-attachment"){
+      addAttachment(projectId);
+    } else if (action === "delete-attachment"){
+      const attRow = e.target.closest("[data-attachment-id]");
+      deleteAttachment(attRow.dataset.projectId, attRow.dataset.attachmentId);
     }
   });
 
@@ -2779,6 +2903,13 @@ function attachProjectRootHandlers(el){
       const row = target.closest("[data-milestone-id]");
       updateMilestone(row.dataset.projectId, row.dataset.milestoneId, target.dataset.field, target.value);
     }
+    const isAttachmentTextField = target.dataset.role === "attachment-field" &&
+      ((target.tagName === "INPUT" && target.type !== "date") || target.tagName === "TEXTAREA");
+    if (isAttachmentTextField){
+      const row = target.closest("[data-attachment-id]");
+      updateAttachment(row.dataset.projectId, row.dataset.attachmentId, target.dataset.field, target.value);
+      if (target.dataset.field === "link") render(); // refresh so the "open" icon appears/disappears
+    }
   });
 
   el.addEventListener("input", (e) => {
@@ -2806,6 +2937,11 @@ function attachProjectRootHandlers(el){
     if (target.dataset.role === "milestone-field"){
       const row = target.closest("[data-milestone-id]");
       updateMilestone(row.dataset.projectId, row.dataset.milestoneId, target.dataset.field, target.value);
+      render();
+    }
+    if (target.dataset.role === "attachment-field"){
+      const row = target.closest("[data-attachment-id]");
+      updateAttachment(row.dataset.projectId, row.dataset.attachmentId, target.dataset.field, target.value);
       render();
     }
   });
