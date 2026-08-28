@@ -380,7 +380,7 @@
     <button class="btn btn-ghost" id="exportPdfBtn">Export PDF summary</button>
     <button class="btn btn-ghost" id="exportPptBtn">Export PPT summary</button>
   </div>
-  <p class="sub" id="saveHint" style="margin-top:-6px; margin-bottom:16px;">This runs entirely from static files — nothing saves automatically. Click "Export updated workbook" when you're done editing, and share that file so others can load your changes.</p>
+  <p class="sub" id="saveHint" style="margin-top:-6px; margin-bottom:16px;">Edits save automatically and sync to everyone viewing this dashboard within a few seconds. Use "Load .xlsx workbook" / "Export updated workbook" for bulk imports or offline backups.</p>
 
   <div class="stats" id="stats"></div>
 
@@ -1015,20 +1015,19 @@ function normalizeDateInput(raw){
   return value; // couldn't confidently parse — keep what they typed rather than reject it
 }
 
-// ---------- persistence (file-based — no server/backend required at all) ----------
-// This dashboard runs entirely from static files. It starts with the data baked
-// into SEED_DATA below. To share updates, use "Export data file" to download a
-// .json snapshot, and have people "Load data file" to bring it back in — there's
-// no server-side write anywhere, so saving is a manual (but simple) step.
-async function loadData(){
-  state.projects = JSON.parse(JSON.stringify(SEED_DATA));
-  state.loaded = true;
-  const hashTab = (location.hash || "").replace("#", "");
-  if (["projects", "summary", "phase", "health", "risks", "escalations"].includes(hashTab)){
-    state.activeTab = hashTab;
-  }
-  render();
-}
+// ---------- realtime persistence (Netlify Blobs, via a serverless function) ----------
+// Data now lives server-side in a Netlify Blobs store, fronted by a small function
+// at /.netlify/functions/data (see netlify/functions/data.mjs). Every browser reads
+// that store on load and polls it for changes, and every edit pushes back to it —
+// so updates show up for everyone within a few seconds. The "Export .xlsx" / "Load
+// .xlsx workbook" buttons still work as an offline backup/import path.
+const DATA_ENDPOINT = "/.netlify/functions/data";
+const LIVE_ROOT_IDS = ["projectsRoot", "risksRoot", "escalationsRoot", "phaseRoot", "healthRoot"];
+const POLL_INTERVAL_MS = 4000;
+
+let lastKnownUpdatedAt = 0;
+let saveTimer = null;
+let saving = false;
 
 function setSaveStatus(msg, isError){
   const el = document.getElementById("saveStatus");
@@ -1036,9 +1035,95 @@ function setSaveStatus(msg, isError){
   el.style.color = isError ? "#B3452C" : "";
 }
 
-// Edits live in memory only until exported — there is no server this file talks to.
+async function fetchRemoteState(){
+  const res = await fetch(DATA_ENDPOINT, { cache: "no-store" });
+  if (!res.ok) throw new Error(`GET ${DATA_ENDPOINT} failed: ${res.status}`);
+  return res.json(); // { projects: [...], updatedAt: number } or null
+}
+
+async function pushRemoteState(){
+  saving = true;
+  try{
+    const res = await fetch(DATA_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projects: state.projects }),
+    });
+    if (!res.ok) throw new Error(`POST ${DATA_ENDPOINT} failed: ${res.status}`);
+    const body = await res.json();
+    lastKnownUpdatedAt = body.updatedAt;
+    setSaveStatus("Synced ✓");
+  }catch(err){
+    console.error(err);
+    setSaveStatus("Couldn't sync changes — check your connection", true);
+  }finally{
+    saving = false;
+  }
+}
+
+// Debounced push: fires ~600ms after the last edit so rapid typing doesn't
+// spam the function with a request per keystroke.
 function scheduleSave(){
-  setSaveStatus("Unsaved changes — click \"Export data file\" to save a copy");
+  setSaveStatus("Saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushRemoteState, 600);
+}
+
+function isEditingField(){
+  const active = document.activeElement;
+  if (!active) return false;
+  const tag = active.tagName;
+  if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") return false;
+  return LIVE_ROOT_IDS.some(id => {
+    const root = document.getElementById(id);
+    return root && root.contains(active);
+  });
+}
+
+// Polls the store for changes made elsewhere (another tab, another person).
+// Skips while the person is actively mid-edit, or while a local save is in
+// flight, so a poll never clobbers unsaved keystrokes.
+async function pollRemoteState(){
+  if (saving || isEditingField()) return;
+  try{
+    const remote = await fetchRemoteState();
+    if (remote && remote.updatedAt && remote.updatedAt > lastKnownUpdatedAt){
+      lastKnownUpdatedAt = remote.updatedAt;
+      state.projects = remote.projects || [];
+      state.loaded = true;
+      render();
+      setSaveStatus("Updated from another session");
+    }
+  }catch(err){
+    console.error(err);
+  }
+}
+
+async function loadData(){
+  const hashTab = (location.hash || "").replace("#", "");
+  if (["projects", "summary", "phase", "health", "risks", "escalations"].includes(hashTab)){
+    state.activeTab = hashTab;
+  }
+  setSaveStatus("Loading…");
+  try{
+    const remote = await fetchRemoteState();
+    if (remote && Array.isArray(remote.projects) && remote.projects.length){
+      state.projects = remote.projects;
+      lastKnownUpdatedAt = remote.updatedAt || Date.now();
+      setSaveStatus("Synced ✓");
+    } else {
+      // Nothing in the store yet — seed it from SEED_DATA so every session starts aligned.
+      state.projects = JSON.parse(JSON.stringify(SEED_DATA));
+      await pushRemoteState();
+    }
+  }catch(err){
+    console.error(err);
+    state.projects = JSON.parse(JSON.stringify(SEED_DATA));
+    setSaveStatus("Couldn't reach the server — showing local data only", true);
+  }
+  state.loaded = true;
+  render();
+  setInterval(pollRemoteState, POLL_INTERVAL_MS);
 }
 
 function workbookToProjects(wb){
@@ -1185,10 +1270,9 @@ document.getElementById("loadDataInput").addEventListener("change", (e) => {
       if (!projects.length) throw new Error("No project rows found");
       state.projects = projects;
       state.loaded = true;
-      const subtitleEl = document.getElementById("subtitle");
-      if (subtitleEl) subtitleEl.textContent = `Loaded from ${file.name} — every field is live and editable.`;
-      setSaveStatus(`Loaded ${projects.length} initiative${projects.length===1?"":"s"} from file`);
+      setSaveStatus(`Loaded ${projects.length} initiative${projects.length===1?"":"s"} from file — syncing…`);
       render();
+      pushRemoteState();
     }catch(err){
       console.error(err);
       alert("Couldn't read that file. Make sure it's a .xlsx with an \"Initiatives\" tab and an \"Initiative Name\" column.");

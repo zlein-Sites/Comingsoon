@@ -1,0 +1,9 @@
+{
+  "name": "delivery-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static delivery dashboard with realtime sync via a Netlify Function + Netlify Blobs.",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
